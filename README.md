@@ -18,7 +18,21 @@ This is the backend for a custom **Pick & Pack** web app used for managing groce
 ---
 
 ## 🧱 Project Structure
-<pre lang="text"> ```text ├── server.js # Entry point ├── .env # Environment variables ├── package.json # Dependencies & scripts └── src/ ├── app.js # Express app config ├── config/ # Config (Mongo, Shopify, etc.) ├── models/ # Mongoose schemas (Order, User, etc.) ├── routes/ # Express routes by feature ├── controllers/ # Route logic ├── services/ # External API logic (Shopify, Locate2U, Slack) ├── middleware/ # Auth, error handling └── utils/ # Helpers (PDF, barcode validation) ``` </pre>
+<pre lang="text"> ```
+    root/ 
+        ├── server.js # Entry point 
+        ├── .env # Environment variables 
+        ├── package.json # Dependencies & scripts 
+        └── src/ 
+            ├── app.js # Express app config 
+            ├── config/ # Config (Mongo, Shopify, etc.) 
+            ├── models/ # Mongoose schemas (Order, User, etc.) 
+            ├── routes/ # Express routes by feature 
+            ├── controllers/ # Route logic 
+            ├── services/ # External API logic (Shopify, Locate2U, Slack) 
+            ├── middleware/ # Auth, error handling 
+            └── utils/ # Helpers (PDF, barcode validation) ``` 
+</pre>
 
 ---
 
