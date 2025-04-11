@@ -1,15 +1,18 @@
-// src/app.js
 const express = require('express');
 const morgan = require('morgan');
-const shopifyRoutes = require('./routes/shopify.routes');
+const routes = require('./routes');
+const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 
 app.use(express.json());
 app.use(morgan('dev'));
 
-// All Shopify-related routes
-app.use('/api/shopify', shopifyRoutes);
+// Mount auth route
+app.use('/api/auth', authRoutes);
+
+// Mount all routes under /api
+app.use('/api', routes);
 
 // Health check
 app.get('/', (req, res) => {
