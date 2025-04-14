@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Order = require('../models/order.model');
 
 // Fetch orders assigned to the picker (e.g., from query param or session)
@@ -12,45 +13,125 @@ const getPickerOrders = async (req, res) => {
   }
 };
 
-// Scan item → validate barcode, mark picked, flag or substitute if needed
-const scanAndUpdateItem = async (req, res) => {
+//PATCH /api/picker/order/:id/pick-item
+const pickItem =  async (req, res) => {
+  const { id } = req.params;
+  const { productId } = req.body;
+  console.log(id);
+  console.log(productId);
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const item = order.lineItems.find(i => i.productId === productId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  item.picked = true;
+  if (order.status == "new" ) order.status = "picking";
+  await order.save();
+
+  res.json({ message: 'Item marked as picked' });
+}
+
+// PATCH /api/picker/order/:id
+const getPickingOrder = async (req, res) => {
+  const orderId = req.params.id;
+
   try {
-    const { orderId, barcode, flags = [], substitution = null, pickerId } = req.body;
+    const objectId = new mongoose.Types.ObjectId(orderId);
 
-    const order = await Order.findOne({ shopifyOrderId: orderId });
+    const order = await Order.aggregate([
+      { $match: { _id: objectId } },
+      {
+        $project: {
+          shopifyOrderId: 1,
+          status: 1,
+          pickerId: 1,
+          packerId: 1,
+          createdAt: 1,
+          customer: 1,
+          delivery: 1,
+          lineItems: 1,
+          totalQuantity: { $sum: "$lineItems.quantity" },
+          pickedCount: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: {
+                  $cond: [{ $eq: ["$$item.picked", true] }, "$$item.quantity", 0]
+                }
+              }
+            }
+          },
+          packedCount: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: {
+                  $cond: [{ $eq: ["$$item.packed", true] }, "$$item.quantity", 0]
+                }
+              }
+            }
+          }
+        }
+      }
+    ]);
 
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-
-    const item = order.lineItems.find(item => item.barcode === barcode);
-
-    if (!item) return res.status(400).json({ error: 'Item not found for barcode' });
-
-    item.picked = true;
-    item.flags = flags;
-    item.substitution = substitution;
-
-    // Optionally update the pickerId if it's the first scan
-    if (!order.pickerId) {
-      order.pickerId = pickerId;
+    if (!order || order.length === 0) {
+      return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Check if all items picked → update status
-    const allPicked = order.lineItems.every(i => i.picked);
-    if (allPicked) {
-      order.status = 'picked';
-    }
-
-    order.updatedAt = new Date();
-    await order.save();
-
-    res.json({ message: 'Item updated', order });
-  } catch (err) {
-    console.error('Error scanning item:', err);
-    res.status(500).json({ error: 'Failed to update item' });
+    res.json(order[0]); // Aggregation returns an array
+  } catch (error) {
+    console.error('Error getting picking order:', error);
+    res.status(500).json({ message: 'Server error' });
   }
+};
+
+// PATCH /api/picker/order/:orderId/scan
+const scanBarcode = async (req, res) => {
+  const { orderId } = req.params;
+  const { barcode } = req.body;
+
+  const order = await Order.findById(orderId);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+
+  const item = order.lineItems.find(item => item.variantId === barcode);
+  if (!item) return res.status(400).json({ message: "Item not found" });
+
+  if (item.pickedQuantity < item.quantity) {
+    item.pickedQuantity += 1;
+  }
+
+  if (item.pickedQuantity >= item.quantity) {
+    item.picked = true;
+  }
+
+  await order.save();
+  res.json({ success: true, item });
+};
+
+// POST /api/picker/order/:orderId/complete-picking
+const completePicking = async (req, res) => {
+  const { id } = req.params;
+
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
+
+  const allPicked = order.lineItems.every(item => item.picked);
+  if (!allPicked) return res.status(400).json({ message: "Not all items picked" });
+
+  order.status = 'picked';
+  await order.save();
+
+  res.json({ success: true });
 };
 
 module.exports = {
   getPickerOrders,
-  scanAndUpdateItem,
+  getPickingOrder,
+  pickItem,
+  scanBarcode,
+  completePicking
 };

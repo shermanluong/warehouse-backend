@@ -1,11 +1,20 @@
 const express = require('express');
-const { getPickerOrders, scanAndUpdateItem } = require('../controllers/picker.controller');
+const auth = require('../middleware/auth.middleware');
+const { 
+    getPickerOrders, 
+    getPickingOrder, 
+    pickItem,
+    scanBarcode,
+    completePicking,
+ } = require('../controllers/picker.controller');
 const router = express.Router();
 
 // Get orders assigned to a picker
-router.get('/orders', getPickerOrders);
+router.get('/orders', auth(['picker']), getPickerOrders);
 
-// Scan item and update status
-router.post('/scan', scanAndUpdateItem);
+router.get('/order/:id', auth(['picker']), getPickingOrder);
+router.patch('/order/:id/pick-item', auth(['picker']), pickItem);
+router.patch('/order/:id/scan', auth(['picker']), scanBarcode);
+router.post('/order/:id/complete-picking', auth(['picker']), completePicking);
 
 module.exports = router;
