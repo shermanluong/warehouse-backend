@@ -46,7 +46,22 @@ const orderSchema = new mongoose.Schema({
   lineItems: [lineItemSchema],
   photoUrl: String,
   delivery: deliverySchema,
-  logs: [logSchema]
+  logs: [logSchema],
+  customer: {
+    id: String,
+    email: String,
+    first_name: String,
+    last_name: String,
+    phone: String,
+    default_address: {
+      address1: String,
+      address2: String,
+      city: String,
+      province: String,
+      country: String,
+      zip: String
+    }
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

@@ -11,16 +11,20 @@ const getLogs = async (req, res) => {
 
 // Optional: dashboard summary
 const getDashboardStats = async (req, res) => {
-  const totalUsers = await User.countDocuments();
-  const totalOrders = await Order.countDocuments();
-  const pickers = await User.find({ role: 'picker' });
-  const packers = await User.find({ role: 'packer' });
+  const newOrders       = await Order.find({ status: 'new' });
+  const pickingOrders   = await Order.find({ status: 'picking' });
+  const pickedOrders    = await Order.find({ status: 'picked' });
+  const packingOrders   = await Order.find({ status: 'packing' });
+  const packedOrders    = await Order.find({ status: 'packed' });
+  const deliveredOrders = await Order.find({ status: 'delivered' });
 
   res.json({
-    totalUsers,
-    totalOrders,
-    pickers: pickers.length,
-    packers: packers.length,
+    newOrders: newOrders.length,
+    pickingOrders: pickingOrders.length,
+    pickedOrders: pickedOrders.length,
+    packingOrders: packingOrders.length,
+    packedOrders: packedOrders.length,
+    deliveredOrders: deliveredOrders.length,
   });
 };
 

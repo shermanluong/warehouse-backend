@@ -4,7 +4,6 @@ const router = express.Router();
 const auth = require('../middleware/auth.middleware');
 const { getOrdersByRole } = require('../controllers/order.controller');
 
-//router.get('/', auth(['admin', 'picker', 'packer']), getOrdersFromDB);
-router.get('/', getOrdersByRole);
+router.get('/', auth(['admin', 'picker', 'packer']), getOrdersByRole);
 
 module.exports = router;
