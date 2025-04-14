@@ -13,7 +13,8 @@ const userSchema = new mongoose.Schema({
   stats: {
     ordersPicked: { type: Number, default: 0 },
     ordersPacked: { type: Number, default: 0 },
-    accuracyScore: { type: Number, default: 100 }
+    accuracyScore: { type: Number, default: 100 },
+    currentLineItemsAssigned: {type: Number, default: 0},
   }
 }, { timestamps: true });
 

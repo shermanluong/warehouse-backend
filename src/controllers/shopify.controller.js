@@ -1,12 +1,22 @@
 // src/controllers/shopify.controller.js
 const { getOrders } = require('../services/shopify.service');
 const Order = require('../models/order.model');
+const User  = require('../models/user.model');
+
+const assignLeastBusyPicker = async () => {
+  const picker = await User.findOne({ role: 'picker', active: true })
+    .sort({ 'stats.currentLineItemsAssigned': 1 }) // Least busy first
+    .exec();
+
+  return picker;
+};
 
 const fetchAndStoreOrders = async (req, res) => {
   const orders = await getOrders(); // Assuming this pulls unfulfilled orders from Shopify
 
   for (const order of orders) {
     const customer = order.customer;
+    const picker = await assignLeastBusyPicker();
 
     await Order.findOneAndUpdate(
       { shopifyOrderId: order.id },
@@ -14,6 +24,7 @@ const fetchAndStoreOrders = async (req, res) => {
         $set: {
           shopifyOrderId: order.id,
           status: 'new',
+          pickerId: picker._id,
           lineItems: order.line_items.map(item => ({
             productId: item.sku || item.variant_id,
             name: item.title,
@@ -44,6 +55,12 @@ const fetchAndStoreOrders = async (req, res) => {
       },
       { upsert: true }
     );
+    
+    const newLineItemCount = order.line_items.reduce((acc, item) => acc + item.quantity, 0);
+    
+    await User.findByIdAndUpdate(picker._id, {
+      $inc: { 'stats.currentLineItemsAssigned': newLineItemCount }
+    });
   }
 
   res.json({ message: 'Synced', count: orders.length });
