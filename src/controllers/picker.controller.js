@@ -4,9 +4,55 @@ const Order = require('../models/order.model');
 // Fetch orders assigned to the picker (e.g., from query param or session)
 const getPickerOrders = async (req, res) => {
   try {
-    const { pickerId } = req.query;
-    const orders = await Order.find({ status: 'new', pickerId });
-    res.json({ orders });
+    const { userId } = req.user;
+
+    let match = {
+      $and: [
+        { pickerId: userId },
+        { status: { $in: ['new', 'picking'] } }
+      ]
+    };
+
+    const orders = await Order.aggregate([
+      { $match: match },
+      { $sort: { createdAt: -1 } },
+      {
+        $project: {
+          shopifyOrderId: 1,
+          status: 1,
+          pickerId: 1,
+          packerId: 1,
+          createdAt: 1,
+          customer: 1, // ✅ include customer field
+          totalQuantity: { $sum: "$lineItems.quantity" },
+          pickedCount: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: {
+                  $cond: [{ $eq: ["$$item.picked", true] }, "$$item.quantity", 0]
+                }
+              }
+            }
+          },
+          packedCount: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: {
+                  $cond: [{ $eq: ["$$item.packed", true] }, "$$item.quantity", 0]
+                }
+              }
+            }
+          },
+          lineItemCount: { $size: "$lineItems" } // ✅ Line item count added here
+        }
+      }
+    ]);
+
+    res.json(orders);
   } catch (err) {
     console.error('Error fetching picker orders:', err);
     res.status(500).json({ error: 'Internal server error' });
