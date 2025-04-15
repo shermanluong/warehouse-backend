@@ -1,11 +1,12 @@
 const express = require('express');
-const { getPickedOrders, finalisePack } = require('../controllers/packer.controller');
+const auth = require('../middleware/auth.middleware');
+const { getPickedOrders,
+        getPackingOrder,
+        finalisePack } = require('../controllers/packer.controller');
 const router = express.Router();
 
-// Get orders ready for packing
-router.get('/orders', getPickedOrders);
-
-// Finalize pack (photo upload, update status, trigger label print)
-router.post('/finalise', finalisePack);
+router.get('/orders', auth(['packer']), getPickedOrders);
+router.get('/order/:id', auth(['packer']), getPackingOrder);
+router.post('/finalise', auth(['packer']), finalisePack);
 
 module.exports = router;

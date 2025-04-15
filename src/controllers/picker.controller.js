@@ -78,7 +78,7 @@ const pickItem =  async (req, res) => {
   res.json({ message: 'Item marked as picked' });
 }
 
-// PATCH /api/picker/order/:id
+// Get /api/picker/order/:id
 const getPickingOrder = async (req, res) => {
   const orderId = req.params.id;
 
