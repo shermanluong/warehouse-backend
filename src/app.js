@@ -8,7 +8,7 @@ const app = express();
 
 // Allow frontend to access backend
 app.use(cors({
-  origin: 'http://localhost:5173', // or '*' for development
+  origin: '*', // or '*' for development
   credentials: true // if using cookies/auth headers
 }));
 
