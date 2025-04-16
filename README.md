@@ -84,18 +84,20 @@ node server.js
 - Admins - Can view and manage all.
 Use JWT or session-based auth (to be configured).
 
-## Tech Stack
-- Node.js + Express - Backend API
-- MongoDB + Mongoose - Database
-- Shopify & Locate2U APIs - Ecom & logistics
-- Slack Webhooks - Notifications
-- PDFKit / jsPDF - Label & slip generation
-- AWS S3 / Local - Photo uploads
+🧰 Tech Stack
+- Node.js + Express - Backend API framework
+- MongoDB + Mongoose - NoSQL database & ODM
+- Shopify REST & GraphQL APIs - E-commerce order sync, product data, media, etc.
+- Locate2U API - Real-time driver tracking & logistics integration
+- Slack Webhooks - Internal notifications & alerts
+- PDFKit / jsPDF - Packing slip & label generation
+- AWS S3 / Local Storage - Product and item photo uploads
+- GraphQL Client (graphql-request) - Lightweight GraphQL integration for Shopify media
 
-## Photo Uploads
+## 📸 Photo Uploads
 Photos are captured at packing time using webcam/tablet and uploaded to:
 - AWS S3(preferred)
 - or /uploads folder(fallback/local)
 
 ---
-© 2025 Ritas Farm Produce – Custom Warehouse Ops
+© 2025 Ritas Farm Produce - Custom Warehouse Ops
