@@ -118,6 +118,26 @@ const getPackingOrder = async (req, res) => {
   }
 };
 
+//PATCH /api/packer/order/:id/pack-item
+const packItem =  async (req, res) => {
+  const { id } = req.params;
+  const { productId } = req.body;
+
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const item = order.lineItems.find(i => i.productId === productId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  const packerObjectId = new mongoose.Types.ObjectId(req.user.userId); // convert string to ObjectId
+  order.packerId= packerObjectId;
+  item.packed = true;
+  if (order.status == "picked" ) order.status = "packing";
+  await order.save();
+
+  res.json({ message: 'Item marked as packed' });
+}
+
 // Finalize packing (updates order status, adds photo, logs, etc.)
 const finalisePack = async (req, res) => {
   try {
@@ -153,5 +173,6 @@ const finalisePack = async (req, res) => {
 module.exports = {
   getPickedOrders,
   getPackingOrder,
+  packItem,
   finalisePack,
 };

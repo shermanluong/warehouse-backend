@@ -28,6 +28,59 @@ const getDashboardStats = async (req, res) => {
   });
 };
 
+// Fetch orders assigned to the picker (e.g., from query param or session)
+const getOrders = async (req, res) => {
+  try {
+    const orders = await Order.aggregate([
+      { $sort: { createdAt: -1 } },
+      {
+        $lookup: {
+          from: 'users', // MongoDB collection name for users
+          localField: 'pickerId',
+          foreignField: '_id',
+          as: 'picker'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'packerId',
+          foreignField: '_id',
+          as: 'packer'
+        }
+      },
+      {
+        $unwind: {
+          path: '$picker',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $unwind: {
+          path: '$packer',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          shopifyOrderId: 1,
+          status: 1,
+          createdAt: 1,
+          customer: 1,
+          lineItemCount: { $size: '$lineItems' },
+          picker: { name: '$picker.realName',},
+          packer: { name: '$packer.realName',}
+        }
+      }
+    ]);
+
+    res.json(orders);
+  } catch (err) {
+    console.error('Error fetching admin orders:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 // Admin gets all users
 const getUsers = async (req, res) => {
   const users = await User.find({}, '-passwordHash');
@@ -79,6 +132,7 @@ const deleteUser = async (req, res) => {
 module.exports = {
   getLogs,
   getDashboardStats,
+  getOrders,
   getUsers,
   registerUser,
   updateUser,

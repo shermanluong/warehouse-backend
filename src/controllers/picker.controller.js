@@ -4,11 +4,11 @@ const Order = require('../models/order.model');
 // Fetch orders assigned to the picker (e.g., from query param or session)
 const getPickerOrders = async (req, res) => {
   try {
-    const { userId } = req.user;
+    const userObjectId = new mongoose.Types.ObjectId(req.user.userId); // convert string to ObjectId
 
     let match = {
       $and: [
-        { pickerId: userId },
+        { pickerId: userObjectId },
         { status: { $in: ['new', 'picking'] } }
       ]
     };
@@ -63,8 +63,7 @@ const getPickerOrders = async (req, res) => {
 const pickItem =  async (req, res) => {
   const { id } = req.params;
   const { productId } = req.body;
-  console.log(id);
-  console.log(productId);
+
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
 

@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const { Schema, Types } = mongoose;
+const User = require('./user.model');
 
 const substitutionSchema = new mongoose.Schema({
   used: Boolean,
@@ -38,15 +40,15 @@ const deliverySchema = new mongoose.Schema({
   eta: Date
 }, { _id: false });
 
-const orderSchema = new mongoose.Schema({
+const orderSchema = new Schema({
   shopifyOrderId: { type: String, required: true, unique: true },
   status: {
     type: String,
     enum: ['new', 'picking', 'picked', 'packing', 'packed', 'delivered'],
     default: 'new'
   },
-  pickerId: String,
-  packerId: String,
+  pickerId: { type: Types.ObjectId, ref: 'User', default: null },
+  packerId: { type: Types.ObjectId, ref: 'User', default: null },
   lineItems: [lineItemSchema],
   photoUrl: String,
   delivery: deliverySchema,
