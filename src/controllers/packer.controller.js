@@ -115,6 +115,16 @@ const getPackingOrder = async (req, res) => {
       },
       {
         $addFields: {
+          lineItems: {
+            $sortArray: {
+              input: "$lineItems",
+              sortBy: { "variantInfo.sku": 1 }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
           totalQuantity: {
             $sum: {
               $map: {
