@@ -33,14 +33,19 @@ const getOrders = async (req, res) => {
   try {
     const orders = await Order.aggregate([
       { $sort: { createdAt: -1 } },
+
+      // Join picker
       {
         $lookup: {
-          from: 'users', // MongoDB collection name for users
+          from: 'users',
           localField: 'pickerId',
           foreignField: '_id',
           as: 'picker'
         }
       },
+      { $unwind: { path: '$picker', preserveNullAndEmptyArrays: true } },
+
+      // Join packer
       {
         $lookup: {
           from: 'users',
@@ -49,18 +54,72 @@ const getOrders = async (req, res) => {
           as: 'packer'
         }
       },
+      { $unwind: { path: '$packer', preserveNullAndEmptyArrays: true } },
+
+      // Unwind lineItems
+      { $unwind: '$lineItems' },
+
+      // Join product info
       {
-        $unwind: {
-          path: '$picker',
-          preserveNullAndEmptyArrays: true
+        $lookup: {
+          from: 'products',
+          let: {
+            pid: '$lineItems.productId',
+            vid: '$lineItems.variantId'
+          },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$shopifyProductId', '$$pid'] } } },
+            {
+              $addFields: {
+                variant: {
+                  $first: {
+                    $filter: {
+                      input: '$variants',
+                      as: 'v',
+                      cond: { $eq: ['$$v.shopifyVariantId', '$$vid'] }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          as: 'productInfo'
         }
       },
+      { $unwind: { path: '$productInfo', preserveNullAndEmptyArrays: true } },
+
+      // Regroup lineItems
       {
-        $unwind: {
-          path: '$packer',
-          preserveNullAndEmptyArrays: true
+        $group: {
+          _id: '$_id',
+          shopifyOrderId: { $first: '$shopifyOrderId' },
+          status: { $first: '$status' },
+          createdAt: { $first: '$createdAt' },
+          customer: { $first: '$customer' },
+          picker: { $first: '$picker' },
+          packer: { $first: '$packer' },
+          lineItems: {
+            $push: {
+              productId: '$lineItems.productId',
+              variantId: '$lineItems.variantId',
+              quantity: '$lineItems.quantity',
+              pickedQuantity: '$lineItems.pickedQuantity',
+              picked: '$lineItems.picked',
+              packed: '$lineItems.packed',
+              substitution: '$lineItems.substitution',
+              flags: '$lineItems.flags',
+              adminNote: '$lineItems.adminNote',
+              customerNote: '$lineItems.customerNote',
+              productTitle: '$productInfo.title',
+              image: '$productInfo.image',
+              variantTitle: '$productInfo.variant.title',
+              sku: '$productInfo.variant.sku',
+              barcode: '$productInfo.variant.barcode'
+            }
+          }
         }
       },
+
       {
         $project: {
           shopifyOrderId: 1,
@@ -68,8 +127,9 @@ const getOrders = async (req, res) => {
           createdAt: 1,
           customer: 1,
           lineItemCount: { $size: '$lineItems' },
-          picker: { name: '$picker.realName',},
-          packer: { name: '$packer.realName',}
+          lineItems: 1,
+          picker: { name: '$picker.realName' },
+          packer: { name: '$packer.realName' }
         }
       }
     ]);
@@ -80,6 +140,8 @@ const getOrders = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
 
 // Admin gets all users
 const getUsers = async (req, res) => {

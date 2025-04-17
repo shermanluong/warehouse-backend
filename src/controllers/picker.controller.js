@@ -59,24 +59,6 @@ const getPickerOrders = async (req, res) => {
   }
 };
 
-//PATCH /api/picker/order/:id/pick-item
-const pickItem =  async (req, res) => {
-  const { id } = req.params;
-  const { productId } = req.body;
-
-  const order = await Order.findById(id);
-  if (!order) return res.status(404).json({ message: 'Order not found' });
-
-  const item = order.lineItems.find(i => i.productId === productId);
-  if (!item) return res.status(404).json({ message: 'Item not found' });
-
-  item.picked = true;
-  if (order.status == "new" ) order.status = "picking";
-  await order.save();
-
-  res.json({ message: 'Item marked as picked' });
-}
-
 // Get /api/picker/order/:id
 const getPickingOrder = async (req, res) => {
   const orderId = req.params.id;
@@ -86,17 +68,60 @@ const getPickingOrder = async (req, res) => {
 
     const order = await Order.aggregate([
       { $match: { _id: objectId } },
+      { $unwind: "$lineItems" },
       {
-        $project: {
-          shopifyOrderId: 1,
-          status: 1,
-          pickerId: 1,
-          packerId: 1,
-          createdAt: 1,
-          customer: 1,
-          delivery: 1,
-          lineItems: 1,
-          totalQuantity: { $sum: "$lineItems.quantity" },
+        $lookup: {
+          from: "products",
+          localField: "lineItems.productId",
+          foreignField: "shopifyProductId",
+          as: "productInfo"
+        }
+      },
+      { $unwind: "$productInfo" },
+      {
+        $addFields: {
+          "lineItems.productTitle": "$productInfo.title",
+          "lineItems.image": "$productInfo.image",
+          "lineItems.variantInfo": {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$productInfo.variants",
+                  as: "variant",
+                  cond: {
+                    $eq: ["$$variant.shopifyVariantId", "$lineItems.variantId"]
+                  }
+                }
+              },
+              0
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          shopifyOrderId: { $first: "$shopifyOrderId" },
+          status: { $first: "$status" },
+          pickerId: { $first: "$pickerId" },
+          packerId: { $first: "$packerId" },
+          createdAt: { $first: "$createdAt" },
+          customer: { $first: "$customer" },
+          delivery: { $first: "$delivery" },
+          lineItems: { $push: "$lineItems" },
+        }
+      },
+      {
+        $addFields: {
+          totalQuantity: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: "$$item.quantity"
+              }
+            }
+          },
           pickedCount: {
             $sum: {
               $map: {
@@ -124,15 +149,34 @@ const getPickingOrder = async (req, res) => {
     ]);
 
     if (!order || order.length === 0) {
-      return res.status(404).json({ message: 'Order not found' });
+      return res.status(404).json({ message: "Order not found" });
     }
 
-    res.json(order[0]); // Aggregation returns an array
+    res.json(order[0]);
   } catch (error) {
-    console.error('Error getting picking order:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error getting picking order:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
+
+
+//PATCH /api/picker/order/:id/pick-item
+const pickItem =  async (req, res) => {
+  const { id } = req.params;
+  const { productId } = req.body;
+
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const item = order.lineItems.find(i => i.productId === productId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  item.picked = true;
+  if (order.status == "new" ) order.status = "picking";
+  await order.save();
+
+  res.json({ message: 'Item marked as picked' });
+}
 
 // PATCH /api/picker/order/:orderId/scan
 const scanBarcode = async (req, res) => {

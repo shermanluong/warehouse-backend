@@ -11,11 +11,7 @@ const substitutionSchema = new mongoose.Schema({
 const lineItemSchema = new mongoose.Schema({
   productId: String,
   variantId: String,
-  name: String,
   quantity: Number,
-  sku: String,
-  barcode: String,
-  photoImg: String,
   pickedQuantity: { type: Number, default: 0 },
   picked: { type: Boolean, default: false },
   packed: { type: Boolean, default: false },
@@ -47,6 +43,7 @@ const orderSchema = new Schema({
     enum: ['new', 'picking', 'picked', 'packing', 'packed', 'delivered'],
     default: 'new'
   },
+  orderNote: String,
   pickerId: { type: Types.ObjectId, ref: 'User', default: null },
   packerId: { type: Types.ObjectId, ref: 'User', default: null },
   lineItems: [lineItemSchema],
