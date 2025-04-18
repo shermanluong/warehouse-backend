@@ -17,7 +17,10 @@ const lineItemSchema = new mongoose.Schema({
   picked: { type: Boolean, default: false },
   packed: { type: Boolean, default: false },
   substitution: substitutionSchema,
-  flags: [String],
+  flags: {
+    type: [String],
+    enum: ['Out Of Stock', 'Damaged', 'substitution requested'],
+  },
   adminNote: String,
   customerNote: String
 }, { _id: false });

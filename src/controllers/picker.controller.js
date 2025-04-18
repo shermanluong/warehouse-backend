@@ -238,6 +238,26 @@ const pickMinusItem =  async (req, res) => {
   res.json({ success: true, item });
 }
 
+//PATCH /api/picker/order/:id/pick-flag
+const pickFlagItem =  async (req, res) => {
+  const { id } = req.params;
+  const { productId, reason } = req.body;
+
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const item = order.lineItems.find(i => i.productId === productId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  if (!item.flags.includes(reason)) {
+    item.picked = false;
+    item.flags.push(reason);
+  }
+
+  await order.save();
+  res.json({ message: 'Flag added', item });
+}
+
 // PATCH /api/picker/order/:orderId/scan
 const scanBarcode = async (req, res) => {
   const { orderId } = req.params;
@@ -261,15 +281,22 @@ const scanBarcode = async (req, res) => {
   res.json({ success: true, item });
 };
 
+const isPickingComplete = (lineItems) => {
+  return lineItems.every(item => 
+    item.picked || (item.flags && item.flags.length > 0)
+  );
+};
+
 // POST /api/picker/order/:orderId/complete-picking
 const completePicking = async (req, res) => {
   const { id } = req.params;
-
+  
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ message: "Order not found" });
 
-  const allPicked = order.lineItems.every(item => item.picked);
-  if (!allPicked) return res.status(400).json({ message: "Not all items picked" });
+  if (!isPickingComplete(order.lineItems)) {
+    return res.status(400).json({ message: 'All items must be picked or flagged to complete picking.' });
+  }
 
   order.status = 'picked';
   await order.save();
@@ -283,6 +310,7 @@ module.exports = {
   pickItem,
   pickPlusItem,
   pickMinusItem,
+  pickFlagItem,
   scanBarcode,
   completePicking
 };
