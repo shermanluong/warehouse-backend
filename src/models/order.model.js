@@ -13,6 +13,7 @@ const lineItemSchema = new mongoose.Schema({
   variantId: String,
   quantity: Number,
   pickedQuantity: { type: Number, default: 0 },
+  packedQuantity: { type: Number, default: 0 },
   picked: { type: Boolean, default: false },
   packed: { type: Boolean, default: false },
   substitution: substitutionSchema,

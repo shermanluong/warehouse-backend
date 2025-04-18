@@ -191,6 +191,56 @@ const packItem =  async (req, res) => {
   res.json({ message: 'Item marked as packed' });
 }
 
+//PATCH /api/packer/order/:id/pack-plus
+const packPlusItem =  async (req, res) => {
+  const { id } = req.params;
+  const { productId } = req.body;
+
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const item = order.lineItems.find(i => i.productId === productId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  if (item.packedQuantity < item.quantity) {
+    item.packedQuantity += 1;
+  }
+
+  if (item.packedQuantity >= item.quantity) {
+    item.packed = true;
+  }
+
+  if (order.status == "picked" ) order.status = "packing";
+  await order.save();
+
+  res.json({ success: true, item });
+}
+
+//PATCH /api/packer/order/:id/pack-minus
+const packMinusItem =  async (req, res) => {
+  const { id } = req.params;
+  const { productId } = req.body;
+
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const item = order.lineItems.find(i => i.productId === productId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  if (item.packedQuantity > 0) {
+    item.packedQuantity -= 1;
+  }
+
+  if (item.packedQuantity < item.quantity) {
+    item.packed = false;
+  }
+
+  if (order.status == "picked" ) order.status = "packing";
+  await order.save();
+
+  res.json({ success: true, item });
+}
+
 // Finalize packing (updates order status, adds photo, logs, etc.)
 const finalisePack = async (req, res) => {
   try {
@@ -227,5 +277,7 @@ module.exports = {
   getPickedOrders,
   getPackingOrder,
   packItem,
+  packPlusItem,
+  packMinusItem,
   finalisePack,
 };

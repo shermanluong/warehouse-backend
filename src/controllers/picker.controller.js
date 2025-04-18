@@ -188,6 +188,56 @@ const pickItem =  async (req, res) => {
   res.json({ message: 'Item marked as picked' });
 }
 
+//PATCH /api/picker/order/:id/pick-plus
+const pickPlusItem =  async (req, res) => {
+  const { id } = req.params;
+  const { productId } = req.body;
+
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const item = order.lineItems.find(i => i.productId === productId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  if (item.pickedQuantity < item.quantity) {
+    item.pickedQuantity += 1;
+  }
+
+  if (item.pickedQuantity >= item.quantity) {
+    item.picked = true;
+  }
+
+  if (order.status == "new" ) order.status = "picking";
+  await order.save();
+
+  res.json({ success: true, item });
+}
+
+//PATCH /api/picker/order/:id/pick-minus
+const pickMinusItem =  async (req, res) => {
+  const { id } = req.params;
+  const { productId } = req.body;
+
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const item = order.lineItems.find(i => i.productId === productId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  if (item.pickedQuantity > 0) {
+    item.pickedQuantity -= 1;
+  }
+
+  if (item.pickedQuantity < item.quantity) {
+    item.picked = false;
+  }
+
+  if (order.status == "new" ) order.status = "picking";
+  await order.save();
+
+  res.json({ success: true, item });
+}
+
 // PATCH /api/picker/order/:orderId/scan
 const scanBarcode = async (req, res) => {
   const { orderId } = req.params;
@@ -231,6 +281,8 @@ module.exports = {
   getPickerOrders,
   getPickingOrder,
   pickItem,
+  pickPlusItem,
+  pickMinusItem,
   scanBarcode,
   completePicking
 };
