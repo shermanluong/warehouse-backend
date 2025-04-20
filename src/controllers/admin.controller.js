@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/user.model');
 const Order = require('../models/order.model');
+const Product = require('../models/product.model');
 
 // Get logs of all orders (e.g. substitutions, refunds, etc.)
 const getLogs = async (req, res) => {
