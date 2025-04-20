@@ -104,6 +104,10 @@ const GET_ALL_PRODUCTS_QUERY = `
                 barcode
                 price
                 inventoryQuantity
+                image {
+                  originalSrc
+                  altText
+                }
               }
             }
           }
@@ -156,6 +160,7 @@ const syncAllShopifyProducts = async () => {
           barcode: node.barcode,
           price: node.price,
           inventory_quantity: node.inventoryQuantity,
+          image: node.image?.originalSrc || '', // ← new line
         })),
       };
 

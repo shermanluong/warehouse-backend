@@ -145,19 +145,28 @@ const getOrders = async (req, res) => {
 // Controller
 const getProducts = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 50;
-  const search = req.query.search || "";
+  const limit = parseInt(req.query.limit) || 20;
+  const search = req.query.search || '';
+  const sortField = req.query.sort || 'title';
+  const sortOrder = req.query.order === 'desc' ? -1 : 1;
+  const tag = req.query.tag;
 
-  const match = {
-    "variants.title": { $regex: search, $options: "i" }
+  const query = {
+    $or: [
+      { title: { $regex: search, $options: 'i' } },
+      { 'variants.title': { $regex: search, $options: 'i' } },
+      { 'variants.sku': { $regex: search, $options: 'i' } },
+    ]
   };
 
-  const total = await Product.countDocuments(match);
+  if (tag) query.tags = tag;
 
-  const products = await Product.find(match)
+  const total = await Product.countDocuments(query);
+
+  const products = await Product.find(query)
+    .sort({ [sortField]: sortOrder })
     .skip((page - 1) * limit)
-    .limit(limit)
-    .lean();
+    .limit(limit);
 
   res.json({ products, total });
 };
