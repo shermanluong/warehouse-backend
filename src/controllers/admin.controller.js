@@ -32,7 +32,27 @@ const getDashboardStats = async (req, res) => {
 // Fetch orders assigned to the picker (e.g., from query param or session)
 const getOrders = async (req, res) => {
   try {
-    const orders = await Order.aggregate([
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+    const sortField = req.query.sort || 'title';
+    const sortOrder = req.query.order === 'desc' ? -1 : 1;
+
+    const query = {
+      $or: [
+        { title: { $regex: search, $options: 'i' } },
+        { 'variants.title': { $regex: search, $options: 'i' } },
+        { 'variants.sku': { $regex: search, $options: 'i' } },
+      ]
+    };
+
+    const total = await Product.countDocuments(query);
+
+    const orders = await Order/*.find(query)
+    .sort({ [sortField]: sortOrder })
+    .skip((page - 1) * limit)
+    .limit(limit)*/
+    .aggregate([
       { $sort: { createdAt: -1 } },
 
       // Join picker
@@ -135,7 +155,7 @@ const getOrders = async (req, res) => {
       }
     ]);
 
-    res.json(orders);
+    res.json({ orders, total });
   } catch (err) {
     console.error('Error fetching admin orders:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -171,61 +191,9 @@ const getProducts = async (req, res) => {
   res.json({ products, total });
 };
 
-// Admin gets all users
-const getUsers = async (req, res) => {
-  const users = await User.find({}, '-passwordHash');
-  res.json(users);
-};
-
-// Admin registers user (default password)
-const registerUser = async (req, res) => {
-  const { email, name, role } = req.body;
-
-  const existing = await User.findOne({ email });
-  if (existing) return res.status(400).json({ error: 'User already exists' });
-
-  const defaultPassword = 'changeme123';
-  const passwordHash = await bcrypt.hash(defaultPassword, 10);
-
-  const user = new User({
-    email,
-    name,
-    role,
-    passwordHash,
-    active: true, // set to false if you want manual approval
-  });
-
-  await user.save();
-  res.json({ message: 'User created', userId: user._id });
-};
-
-// Admin updates user info
-const updateUser = async (req, res) => {
-  const { id } = req.params;
-  const { name, role, active } = req.body;
-
-  const updated = await User.findByIdAndUpdate(id, { name, role, active }, { new: true });
-  if (!updated) return res.status(404).json({ error: 'User not found' });
-
-  res.json({ message: 'User updated', user: updated });
-};
-
-// Admin deletes user
-const deleteUser = async (req, res) => {
-  const { id } = req.params;
-  const deleted = await User.findByIdAndDelete(id);
-  if (!deleted) return res.status(404).json({ error: 'User not found' });
-
-  res.json({ message: 'User deleted' });
-};
-
 module.exports = {
   getLogs,
   getDashboardStats,
   getOrders,
   getProducts,
-  getUsers,
-  registerUser,
-  updateUser,
-  deleteUser,
 };
