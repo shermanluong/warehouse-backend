@@ -4,7 +4,7 @@ const { getSubstitution, createSubstitution } = require('../controllers/substitu
 const router = express.Router();
 
 // Get substitution suggestion for a product
-router.get('/:productId', getSubstitution);
+router.get('/details', getSubstitution);
 
 // Admin can define new substitution rule
 router.post('/', createSubstitution);

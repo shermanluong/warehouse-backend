@@ -2,12 +2,6 @@ const mongoose = require('mongoose');
 const { Schema, Types } = mongoose;
 const User = require('./user.model');
 
-const substitutionSchema = new mongoose.Schema({
-  used: Boolean,
-  originalProductId: String,
-  substituteProductId: String
-}, { _id: false });
-
 const lineItemSchema = new mongoose.Schema({
   productId: String,
   variantId: String,
@@ -16,7 +10,6 @@ const lineItemSchema = new mongoose.Schema({
   packedQuantity: { type: Number, default: 0 },
   picked: { type: Boolean, default: false },
   packed: { type: Boolean, default: false },
-  substitution: substitutionSchema,
   flags: {
     type: [String],
     enum: ['Out Of Stock', 'Damaged', 'substitution requested'],

@@ -4,6 +4,7 @@ const {
   getLogs,
   getDashboardStats,
   getOrders,
+  getProducts,
   getUsers,
   updateUser,
   deleteUser
@@ -13,8 +14,9 @@ const router = express.Router();
 
 // Admin logs & dashboard stats
 router.get('/logs', getLogs);
-router.get('/stats', getDashboardStats); // Optional: dashboard overview
-router.get('/getOrders', getOrders); // Optional: dashboard overview
+router.get('/stats', getDashboardStats); 
+router.get('/getOrders', getOrders); 
+router.get('/getProducts', getProducts); 
 
 // Admin user management
 router.get('/users', getUsers);             // Fetch all users

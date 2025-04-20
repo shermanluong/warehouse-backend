@@ -141,7 +141,25 @@ const getOrders = async (req, res) => {
   }
 };
 
+// Controller
+const getProducts = async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 50;
+  const search = req.query.search || "";
 
+  const match = {
+    "variants.title": { $regex: search, $options: "i" }
+  };
+
+  const total = await Product.countDocuments(match);
+
+  const products = await Product.find(match)
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .lean();
+
+  res.json({ products, total });
+};
 
 // Admin gets all users
 const getUsers = async (req, res) => {
@@ -195,6 +213,7 @@ module.exports = {
   getLogs,
   getDashboardStats,
   getOrders,
+  getProducts,
   getUsers,
   registerUser,
   updateUser,
