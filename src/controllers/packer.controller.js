@@ -9,9 +9,15 @@ const getPickedOrders = async (req, res) => {
   try {
     const { userId } = req.user;
 
-    let match = {
-      $and: [
-        { status: { $in: ['picked', 'packing'] } }
+    const match = {
+      $or: [
+        { status: 'picked' },
+        { 
+          $and: [
+            { status: 'packing' },
+            { packerId: userId }
+          ]
+        }
       ]
     };
 
@@ -241,6 +247,30 @@ const packMinusItem =  async (req, res) => {
   res.json({ success: true, item });
 }
 
+const startPacking = async (req, res) => {
+  const { orderId } = req.params;
+  const { userId } = req.user;
+  const packerId = userId;
+
+  try {
+    const updated = await Order.findByIdAndUpdate(
+      orderId,
+      {
+        $set: {
+          status: 'packing',
+          packerId: packerId,
+        },
+      },
+      { new: true }
+    );
+
+    res.json({ success: true, order: updated });
+  } catch (err) {
+    console.error('Error starting packing:', err);
+    res.status(500).json({ error: 'Failed to update order status' });
+  }
+};
+
 // Finalize packing (updates order status, adds photo, logs, etc.)
 const finalisePack = async (req, res) => {
   try {
@@ -279,5 +309,6 @@ module.exports = {
   packItem,
   packPlusItem,
   packMinusItem,
+  startPacking,
   finalisePack,
 };
