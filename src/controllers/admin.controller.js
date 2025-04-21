@@ -35,27 +35,41 @@ const getOrders = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const search = req.query.search || '';
-    const sortField = req.query.sort || 'title';
+    const sortField = req.query.sort || 'createdAt';
     const sortOrder = req.query.order === 'desc' ? -1 : 1;
 
-    const query = {
+    const pickerName = req.query.picker || '';
+    const packerName = req.query.packer || '';
+
+    const textSearchQuery = {
       $or: [
-        { title: { $regex: search, $options: 'i' } },
-        { 'variants.title': { $regex: search, $options: 'i' } },
-        { 'variants.sku': { $regex: search, $options: 'i' } },
+        { shopifyOrderId: { $regex: search, $options: 'i' } },
+        {
+          $expr: {
+            $regexMatch: {
+              input: { $concat: ['$customer.first_name', ' ', '$customer.last_name'] },
+              regex: search,
+              options: 'i'
+            }
+          }
+        }
       ]
     };
 
-    const total = await Product.countDocuments(query);
+    const additionalFilters = [];
 
-    const orders = await Order/*.find(query)
-    .sort({ [sortField]: sortOrder })
-    .skip((page - 1) * limit)
-    .limit(limit)*/
-    .aggregate([
-      { $sort: { createdAt: -1 } },
+    if (pickerName) {
+      additionalFilters.push({ 'picker.realName': { $regex: pickerName, $options: 'i' } });
+    }
 
-      // Join picker
+    if (packerName) {
+      additionalFilters.push({ 'packer.realName': { $regex: packerName, $options: 'i' } });
+    }
+
+    const orders = await Order.aggregate([
+      { $sort: { [sortField]: sortOrder } },
+
+      // Lookup picker
       {
         $lookup: {
           from: 'users',
@@ -66,7 +80,7 @@ const getOrders = async (req, res) => {
       },
       { $unwind: { path: '$picker', preserveNullAndEmptyArrays: true } },
 
-      // Join packer
+      // Lookup packer
       {
         $lookup: {
           from: 'users',
@@ -80,7 +94,7 @@ const getOrders = async (req, res) => {
       // Unwind lineItems
       { $unwind: '$lineItems' },
 
-      // Join product info
+      // Lookup product info
       {
         $lookup: {
           from: 'products',
@@ -109,7 +123,7 @@ const getOrders = async (req, res) => {
       },
       { $unwind: { path: '$productInfo', preserveNullAndEmptyArrays: true } },
 
-      // Regroup lineItems
+      // Regroup orders
       {
         $group: {
           _id: '$_id',
@@ -141,26 +155,49 @@ const getOrders = async (req, res) => {
         }
       },
 
+      // Text search
+      { $match: textSearchQuery },
+
+      // Optional filters
+      ...(additionalFilters.length > 0 ? [{ $match: { $and: additionalFilters } }] : []),
+
+      // Pagination with total count
+      {
+        $facet: {
+          data: [
+            { $sort: { [sortField]: sortOrder } },
+            { $skip: (page - 1) * limit },
+            { $limit: limit }
+          ],
+          totalCount: [{ $count: 'count' }]
+        }
+      },
+
       {
         $project: {
-          shopifyOrderId: 1,
-          status: 1,
-          createdAt: 1,
-          customer: 1,
-          lineItemCount: { $size: '$lineItems' },
-          lineItems: 1,
-          picker: { name: '$picker.realName' },
-          packer: { name: '$packer.realName' }
+          data: 1,
+          total: { $arrayElemAt: ['$totalCount.count', 0] }
         }
       }
     ]);
 
-    res.json({ orders, total });
+    const result = orders[0] || { data: [], total: 0 };
+
+    res.json({
+      orders: result.data.map(order => ({
+        ...order,
+        lineItemCount: order.lineItems?.length || 0,
+        picker: { name: order.picker?.realName },
+        packer: { name: order.packer?.realName }
+      })),
+      total: result.total
+    });
   } catch (err) {
     console.error('Error fetching admin orders:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
 
 // Controller
 const getProducts = async (req, res) => {
