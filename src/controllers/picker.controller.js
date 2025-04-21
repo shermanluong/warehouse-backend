@@ -22,6 +22,8 @@ const getPickerOrders = async (req, res) => {
           status: 1,
           pickerId: 1,
           packerId: 1,
+          adminNote: { $ifNull: ["$adminNote", null] }, // 👈 force include null if missing
+          orderNote: 1,
           createdAt: 1,
           customer: 1, // ✅ include customer field
           totalQuantity: { $sum: "$lineItems.quantity" },
@@ -102,6 +104,8 @@ const getPickingOrder = async (req, res) => {
         $group: {
           _id: "$_id",
           shopifyOrderId: { $first: "$shopifyOrderId" },
+          orderNote: { $first: "$orderNote" },
+          adminNote: { $first: "$adminNote" },
           status: { $first: "$status" },
           pickerId: { $first: "$pickerId" },
           packerId: { $first: "$packerId" },
