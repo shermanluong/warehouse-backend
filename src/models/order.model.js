@@ -48,6 +48,7 @@ const orderSchema = new Schema({
     default: 'new'
   },
   orderNote: String,
+  adminNote: String,
   pickerId: { type: Types.ObjectId, ref: 'User', default: null },
   packerId: { type: Types.ObjectId, ref: 'User', default: null },
   lineItems: [lineItemSchema],

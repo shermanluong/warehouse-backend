@@ -30,6 +30,65 @@ const getDashboardStats = async (req, res) => {
   });
 };
 
+//PATCH /admin/order/:orderId/add-order-note
+const addOrderNote = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { note } = req.body;
+
+    if (!note) {
+      return res.status(400).json({ message: 'Note is required' });
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      { adminNote: note },
+      { new: true }
+    );
+
+    if (!updatedOrder) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.json({ order: updatedOrder });
+  } catch (err) {
+    console.error('Error adding order note:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+//PATCH /admin/order/:orderId/add-item-note
+const addItemNote = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { productId, note } = req.body;
+
+    if (!productId || !note) {
+      return res.status(400).json({ message: 'productId and note are required' });
+    }
+
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Find and update the matching line item
+    const item = order.lineItems.find(item => item.productId.toString() === productId);
+
+    if (!item) {
+      return res.status(404).json({ message: 'Product not found in order' });
+    }
+
+    item.adminNote = note;
+    await order.save();
+    res.json({ item });
+  } catch (err) {
+    console.error('Error adding item note:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
 // Fetch orders assigned to the picker (e.g., from query param or session)
 const getOrders = async (req, res) => {
   try {
@@ -134,25 +193,8 @@ const getOrders = async (req, res) => {
           customer: { $first: '$customer' },
           picker: { $first: '$picker' },
           packer: { $first: '$packer' },
-          lineItems: {
-            $push: {
-              productId: '$lineItems.productId',
-              variantId: '$lineItems.variantId',
-              quantity: '$lineItems.quantity',
-              pickedQuantity: '$lineItems.pickedQuantity',
-              picked: '$lineItems.picked',
-              packed: '$lineItems.packed',
-              substitution: '$lineItems.substitution',
-              flags: '$lineItems.flags',
-              adminNote: '$lineItems.adminNote',
-              customerNote: '$lineItems.customerNote',
-              productTitle: '$productInfo.title',
-              image: '$productInfo.image',
-              variantTitle: '$productInfo.variant.title',
-              sku: '$productInfo.variant.sku',
-              barcode: '$productInfo.variant.barcode'
-            }
-          }
+          adminNote: { $first: '$adminNote' },
+          orderNote: { $first: '$orderNote' },
         }
       },
 
@@ -344,4 +386,6 @@ module.exports = {
   getOrders,
   getOrder,
   getProducts,
+  addOrderNote,
+  addItemNote
 };

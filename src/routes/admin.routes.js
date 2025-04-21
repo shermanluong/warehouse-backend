@@ -6,6 +6,8 @@ const {
   getOrders,
   getOrder,
   getProducts,
+  addOrderNote,
+  addItemNote
 } = require('../controllers/admin.controller');
 
 const router = express.Router();
@@ -16,5 +18,7 @@ router.get('/stats', getDashboardStats);
 router.get('/getOrders', getOrders);
 router.get('/order/:id', getOrder);  
 router.get('/getProducts', getProducts); 
+router.patch('/order/:orderId/add-order-note', addOrderNote); 
+router.patch('/order/:orderId/add-item-note', addItemNote); 
 
 module.exports = router;
