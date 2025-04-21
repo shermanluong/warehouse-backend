@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const User = require('../models/user.model');
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
+const mongoose = require('mongoose');
 
 // Get logs of all orders (e.g. substitutions, refunds, etc.)
 const getLogs = async (req, res) => {
@@ -198,6 +199,115 @@ const getOrders = async (req, res) => {
   }
 };
 
+// Get /api/admin/order/:id
+const getOrder = async (req, res) => {
+  const orderId = req.params.id;
+
+  try {
+    const objectId = new mongoose.Types.ObjectId(orderId);
+
+    const order = await Order.aggregate([
+      { $match: { _id: objectId } },
+      { $unwind: "$lineItems" },
+      {
+        $lookup: {
+          from: "products",
+          localField: "lineItems.productId",
+          foreignField: "shopifyProductId",
+          as: "productInfo"
+        }
+      },
+      { $unwind: "$productInfo" },
+      {
+        $addFields: {
+          "lineItems.productTitle": "$productInfo.title",
+          "lineItems.image": "$productInfo.image",
+          "lineItems.variantInfo": {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$productInfo.variants",
+                  as: "variant",
+                  cond: {
+                    $eq: ["$$variant.shopifyVariantId", "$lineItems.variantId"]
+                  }
+                }
+              },
+              0
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          shopifyOrderId: { $first: "$shopifyOrderId" },
+          status: { $first: "$status" },
+          pickerId: { $first: "$pickerId" },
+          packerId: { $first: "$packerId" },
+          createdAt: { $first: "$createdAt" },
+          customer: { $first: "$customer" },
+          delivery: { $first: "$delivery" },
+          lineItems: { $push: "$lineItems" },
+        }
+      },
+      {
+        $addFields: {
+          lineItems: {
+            $sortArray: {
+              input: "$lineItems",
+              sortBy: { "variantInfo.sku": 1 }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          totalQuantity: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: "$$item.quantity"
+              }
+            }
+          },
+          pickedCount: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: {
+                  $cond: [{ $eq: ["$$item.picked", true] }, "$$item.quantity", 0]
+                }
+              }
+            }
+          },
+          packedCount: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: {
+                  $cond: [{ $eq: ["$$item.packed", true] }, "$$item.quantity", 0]
+                }
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    if (!order || order.length === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.json(order[0]);
+  } catch (error) {
+    console.error("Error getting picking order:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 // Controller
 const getProducts = async (req, res) => {
@@ -232,5 +342,6 @@ module.exports = {
   getLogs,
   getDashboardStats,
   getOrders,
+  getOrder,
   getProducts,
 };
