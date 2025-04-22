@@ -7,6 +7,7 @@ const {
     pickPlusItem,
     pickMinusItem,
     pickFlagItem,
+    undoItem,
     scanBarcode,
     completePicking,
  } = require('../controllers/picker.controller');
@@ -18,6 +19,7 @@ router.patch('/order/:id/pick-item', auth(['picker']), pickItem);
 router.patch('/order/:id/pick-plus', auth(['picker']), pickPlusItem);
 router.patch('/order/:id/pick-minus', auth(['picker']), pickMinusItem);
 router.patch('/order/:id/pick-flag', auth(['picker']), pickFlagItem);
+router.patch('/order/:id/undo-item', auth(['picker']), undoItem);
 router.patch('/order/:id/scan', auth(['picker']), scanBarcode);
 router.post('/order/:id/complete-picking', auth(['picker']), completePicking);
 

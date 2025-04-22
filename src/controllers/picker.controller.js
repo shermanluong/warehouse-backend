@@ -330,6 +330,33 @@ const pickMinusItem =  async (req, res) => {
   res.json({ success: true, item });
 }
 
+//PATCH /api/picker/order/:id/undo-item
+const undoItem = async (req, res) => {
+  const { id } = req.params;
+  const { productId, variantId } = req.body;
+
+  try {
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    const item = order.lineItems.find(
+      i => i.productId === productId && i.variantId === variantId
+    );
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+
+    item.picked = false;
+    item.pickedQuantity = 0;
+    item.flags = [];
+    item.substitution = null;
+
+    await order.save();
+    res.json({ message: 'Item successfully reset' });
+  } catch (err) {
+    console.error("Undo error:", err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 //PATCH /api/picker/order/:id/pick-flag
 const pickFlagItem = async (req, res) => {
   const { id } = req.params;
@@ -413,6 +440,7 @@ module.exports = {
   pickPlusItem,
   pickMinusItem,
   pickFlagItem,
+  undoItem,
   scanBarcode,
   completePicking
 };
