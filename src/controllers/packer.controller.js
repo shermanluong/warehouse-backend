@@ -264,6 +264,31 @@ const packItem =  async (req, res) => {
   res.json({ message: 'Item marked as packed' });
 }
 
+//PATCH /api/packer/order/:id/undo-item
+const undoItem = async (req, res) => {
+  const { id } = req.params;
+  const { productId, variantId } = req.body;
+
+  try {
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    const item = order.lineItems.find(
+      i => i.productId === productId && i.variantId === variantId
+    );
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+
+    item.packed = false;
+    item.packedQuantity = 0;
+
+    await order.save();
+    res.json({ message: 'Item successfully reset' });
+  } catch (err) {
+    console.error("Undo error:", err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 //PATCH /api/packer/order/:id/pack-plus
 const packPlusItem =  async (req, res) => {
   const { id } = req.params;
@@ -374,6 +399,7 @@ module.exports = {
   getPickedOrders,
   getPackingOrder,
   packItem,
+  undoItem,
   packPlusItem,
   packMinusItem,
   startPacking,
