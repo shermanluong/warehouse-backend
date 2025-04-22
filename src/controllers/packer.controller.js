@@ -111,6 +111,66 @@ const getPackingOrder = async (req, res) => {
           }
         }
       },
+      // Substitution product lookup
+      {
+        $lookup: {
+          from: "products",
+          localField: "lineItems.substitution.substituteProductId",
+          foreignField: "shopifyProductId",
+          as: "subProduct"
+        }
+      },
+      {
+        $unwind: {
+          path: "$subProduct",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $addFields: {
+          "lineItems.substitution.variantInfo": {
+            $let: {
+              vars: {
+                variant: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: "$subProduct.variants",
+                        as: "variant",
+                        cond: {
+                          $eq: ["$$variant.shopifyVariantId", "$lineItems.substitution.substituteVariantId"]
+                        }
+                      },
+                    },
+                    0,
+                  ]
+                }
+              },
+              in: {
+                shopifyVariantId: "$$variant.shopifyVariantId",
+                title: {
+                  $cond: [
+                    { $eq: ["$$variant.title", "Default Title"] },
+                    "$subProduct.title",
+                    "$$variant.title"
+                  ]
+                },
+                sku: "$$variant.sku",
+                barcode: "$$variant.barcode",
+                price: "$$variant.price",
+                inventory_quantity: "$$variant.inventory_quantity",
+                image: {
+                  $cond: [
+                    { $eq: ["$$variant.image", ""] },
+                    "$subProduct.image",
+                    "$$variant.image"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
       {
         $group: {
           _id: "$_id",
@@ -123,7 +183,7 @@ const getPackingOrder = async (req, res) => {
           createdAt: { $first: "$createdAt" },
           customer: { $first: "$customer" },
           delivery: { $first: "$delivery" },
-          lineItems: { $push: "$lineItems" },
+          lineItems: { $push: "$lineItems" }
         }
       },
       {

@@ -54,6 +54,60 @@ const getSubstitution = async (req, res) => {
   }
 };
 
+// GET /api/substitutions?productId=xxx&variantId=yyy
+const getSubstitutionSuggests = async (req, res) => {
+  const { productId, variantId } = req.query;
+
+  if (!productId || !variantId) {
+    return res.status(400).json({ error: 'Missing productId or variantId' });
+  }
+
+  try {
+    const rule = await SubstitutionRule.findOne({
+      originalProductId: productId,
+      originalVariantId: variantId,
+    });
+
+    if (!rule) return res.json({ substitutes: [] });
+
+    const substitutesWithInfo = await Promise.all(
+      rule.substitutes.map(async (sub) => {
+        const product = await Product.findOne({
+          shopifyProductId: sub.substituteProductId,
+          'variants.shopifyVariantId': sub.substituteVariantId,
+        });
+
+        if (!product) return null;
+
+        const variant = product.variants.find(
+          (v) => v.shopifyVariantId === sub.substituteVariantId
+        );
+
+        return variant
+          ? {
+              shopifyVariantId: sub.substituteVariantId,
+              shopifyProductId: sub.substituteProductId,
+              sku: variant.sku || 'N/A',
+              image: variant.image || product.image || '/placeholder.png',
+              title:
+                variant.title === 'Default Title'
+                  ? product.title
+                  : variant.title,
+              price: variant.price || 'N/A',
+            }
+          : null;
+      })
+    );
+
+    res.json({
+      substitutes: substitutesWithInfo.filter(Boolean),
+    });
+  } catch (err) {
+    console.error('Error fetching substitutions:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // Create Rule
 const createRule = async (req, res) => {
   const { originalProductId, originalVariantId } = req.body;
@@ -140,5 +194,6 @@ module.exports = {
   createRule,
   addSubstitution,
   deleteRule,
-  deleteSubstitute
+  deleteSubstitute,
+  getSubstitutionSuggests
 };

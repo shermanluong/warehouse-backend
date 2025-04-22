@@ -5,7 +5,9 @@ const User = require('./user.model');
 const substitutionSchema = new mongoose.Schema({
   used: Boolean,
   originalProductId: String,
-  substituteProductId: String
+  originalVariantId: String,
+  substituteProductId: String,
+  substituteVariantId: String
 }, { _id: false });
 
 const lineItemSchema = new mongoose.Schema({

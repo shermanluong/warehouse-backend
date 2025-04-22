@@ -4,7 +4,8 @@ const {
     createRule,
     addSubstitution,
     deleteRule,
-    deleteSubstitute
+    deleteSubstitute,
+    getSubstitutionSuggests
 } = require('../controllers/substitution.controller');
 const auth = require('../middleware/auth.middleware');
 const router = express.Router();
@@ -14,5 +15,7 @@ router.post('/rules', auth(['admin']), createRule);
 router.put("/rules/:id/add-substitute", auth(['admin']),  addSubstitution);
 router.delete("/rules/:id", auth(['admin']),  deleteRule);
 router.put("/rules/:id/remove-substitute", auth(['admin']), deleteSubstitute);
+
+router.get("/suggests", auth(['picker']), getSubstitutionSuggests);
 
 module.exports = router;

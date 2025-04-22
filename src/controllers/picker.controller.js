@@ -71,6 +71,8 @@ const getPickingOrder = async (req, res) => {
     const order = await Order.aggregate([
       { $match: { _id: objectId } },
       { $unwind: "$lineItems" },
+
+      // Lookup original product
       {
         $lookup: {
           from: "products",
@@ -100,6 +102,87 @@ const getPickingOrder = async (req, res) => {
           }
         }
       },
+
+      // Lookup substitute product (only if substitution.used is true)
+      {
+        $lookup: {
+          from: "products",
+          localField: "lineItems.substitution.substituteProductId",
+          foreignField: "shopifyProductId",
+          as: "subProduct"
+        }
+      },
+
+      {
+        $addFields: {
+          "lineItems.substitution.variantInfo": {
+            $let: {
+              vars: {
+                matchedVariant: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: {
+                          $ifNull: [
+                            { $arrayElemAt: ["$subProduct.variants", 0] },
+                            []
+                          ]
+                        },
+                        as: "variant",
+                        cond: {
+                          $eq: [
+                            "$$variant.shopifyVariantId",
+                            "$lineItems.substitution.substituteVariantId"
+                          ]
+                        }
+                      },
+                    },
+                    0
+                  ]
+                },
+                productTitle: { $arrayElemAt: ["$subProduct.title", 0] },
+                productImage: { $arrayElemAt: ["$subProduct.image", 0] }
+              },
+              in: {
+                $mergeObjects: [
+                  "$$matchedVariant",
+                  {
+                    title: {
+                      $cond: [
+                        { $eq: ["$$matchedVariant.title", "Default Title"] },
+                        "$$productTitle",
+                        "$$matchedVariant.title"
+                      ]
+                    },
+                    image: {
+                      $cond: [
+                        {
+                          $or: [
+                            { $eq: ["$$matchedVariant.image", null] },
+                            { $eq: ["$$matchedVariant.image", ""] }
+                          ]
+                        },
+                        "$$productImage",
+                        "$$matchedVariant.image"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+
+      // Clean up subProduct
+      {
+        $project: {
+          productInfo: 0,
+          subProduct: 0
+        }
+      },
+
+      // Group back the order
       {
         $group: {
           _id: "$_id",
@@ -112,9 +195,11 @@ const getPickingOrder = async (req, res) => {
           createdAt: { $first: "$createdAt" },
           customer: { $first: "$customer" },
           delivery: { $first: "$delivery" },
-          lineItems: { $push: "$lineItems" },
+          lineItems: { $push: "$lineItems" }
         }
       },
+
+      // Sort by SKU
       {
         $addFields: {
           lineItems: {
@@ -125,6 +210,8 @@ const getPickingOrder = async (req, res) => {
           }
         }
       },
+
+      // Compute totals
       {
         $addFields: {
           totalQuantity: {
@@ -172,6 +259,7 @@ const getPickingOrder = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 //PATCH /api/picker/order/:id/pick-item
@@ -243,9 +331,9 @@ const pickMinusItem =  async (req, res) => {
 }
 
 //PATCH /api/picker/order/:id/pick-flag
-const pickFlagItem =  async (req, res) => {
+const pickFlagItem = async (req, res) => {
   const { id } = req.params;
-  const { productId, reason } = req.body;
+  const { productId, variantId, reason, substituteProductId, substituteVariantId } = req.body;
 
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -253,14 +341,24 @@ const pickFlagItem =  async (req, res) => {
   const item = order.lineItems.find(i => i.productId === productId);
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
+  item.picked = false;
   if (!item.flags.includes(reason)) {
-    item.picked = false;
     item.flags.push(reason);
   }
 
+  if (substituteProductId && substituteVariantId) {
+    item.substitution = {
+      used: true,
+      originalProductId: productId,
+      originalVariantId: variantId,
+      substituteProductId,
+      substituteVariantId,
+    };
+  }
+
   await order.save();
-  res.json({ message: 'Flag added', item });
-}
+  res.json({ message: 'Flag updated', item });
+};
 
 // PATCH /api/picker/order/:orderId/scan
 const scanBarcode = async (req, res) => {
