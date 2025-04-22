@@ -289,6 +289,54 @@ const undoItem = async (req, res) => {
   }
 };
 
+//PATCH /api/packer/order/:id/cancel-sub-item
+const cancelSubItem = async (req, res) => {
+  const { id } = req.params;
+  const { productId, variantId } = req.body;
+
+  try {
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    const item = order.lineItems.find(
+      i => i.productId === productId && i.variantId === variantId
+    );
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+
+    item.substitution = null;
+
+    await order.save();
+    res.json({ message: 'Cancel Sub Item successfully' });
+  } catch (err) {
+    console.error("Cancel sub error:", err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+//PATCH /api/packer/order/:id/confirm-sub-item
+const confirmSubItem = async (req, res) => {
+  const { id } = req.params;
+  const { productId, variantId } = req.body;
+
+  try {
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    const item = order.lineItems.find(
+      i => i.productId === productId && i.variantId === variantId
+    );
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+
+    item.substitution.used = true;
+
+    await order.save();
+    res.json({ message: 'Confirm Sub Item successfully' });
+  } catch (err) {
+    console.error("Confirm error:", err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 //PATCH /api/packer/order/:id/pack-plus
 const packPlusItem =  async (req, res) => {
   const { id } = req.params;
@@ -400,6 +448,8 @@ module.exports = {
   getPackingOrder,
   packItem,
   undoItem,
+  cancelSubItem,
+  confirmSubItem,
   packPlusItem,
   packMinusItem,
   startPacking,

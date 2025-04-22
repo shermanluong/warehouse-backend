@@ -5,6 +5,8 @@ const { getPickedOrders,
         startPacking,
         packItem,
         undoItem,
+        cancelSubItem,
+        confirmSubItem,
         packPlusItem,
         packMinusItem,
         finalisePack 
@@ -17,6 +19,8 @@ router.patch('/order/:id/pack-item', auth(['packer']), packItem);
 router.patch('/order/:id/pack-plus', auth(['packer']), packPlusItem);
 router.patch('/order/:id/pack-minus', auth(['packer']), packMinusItem);
 router.patch('/order/:id/undo-item', auth(['packer']), undoItem);
+router.patch('/order/:id/cancel-sub-item', auth(['packer']), cancelSubItem);
+router.patch('/order/:id/confirm-sub-item', auth(['packer']), confirmSubItem);
 router.post('/startPacking/:orderId', auth(['packer']), startPacking);
 router.post('/finalise', auth(['packer']), finalisePack);
 

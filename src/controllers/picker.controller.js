@@ -260,8 +260,6 @@ const getPickingOrder = async (req, res) => {
   }
 };
 
-
-
 //PATCH /api/picker/order/:id/pick-item
 const pickItem =  async (req, res) => {
   const { id } = req.params;
@@ -375,7 +373,7 @@ const pickFlagItem = async (req, res) => {
 
   if (substituteProductId && substituteVariantId) {
     item.substitution = {
-      used: true,
+      used: false,
       originalProductId: productId,
       originalVariantId: variantId,
       substituteProductId,
