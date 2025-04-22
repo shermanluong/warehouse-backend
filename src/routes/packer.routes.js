@@ -7,6 +7,7 @@ const { getPickedOrders,
         undoItem,
         cancelSubItem,
         confirmSubItem,
+        refundLineItem,
         packPlusItem,
         packMinusItem,
         finalisePack 
@@ -21,6 +22,7 @@ router.patch('/order/:id/pack-minus', auth(['packer']), packMinusItem);
 router.patch('/order/:id/undo-item', auth(['packer']), undoItem);
 router.patch('/order/:id/cancel-sub-item', auth(['packer']), cancelSubItem);
 router.patch('/order/:id/confirm-sub-item', auth(['packer']), confirmSubItem);
+router.post('/refund-item', auth(['packer']), refundLineItem);
 router.post('/startPacking/:orderId', auth(['packer']), startPacking);
 router.post('/finalise', auth(['packer']), finalisePack);
 

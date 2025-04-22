@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const Order = require('../models/order.model');
 const { Types } = require('mongoose');
 const ObjectId = Types.ObjectId;
+const { adjustShopifyInventory} = require('../services/shopify.service');
+const { refundItem } = require('../services/shopify.service');
 
 // const locate2UService = require('../services/locate2u.service'); // optional
 // const photoUploader = require('../services/photo.service');       // optional
@@ -330,10 +332,47 @@ const confirmSubItem = async (req, res) => {
     item.substitution.used = true;
 
     await order.save();
+    await adjustShopifyInventory(variantId, -1); // 🔻 Decrease original variant
     res.json({ message: 'Confirm Sub Item successfully' });
   } catch (err) {
     console.error("Confirm error:", err);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const refundLineItem = async (req, res) => {
+  try {
+    const {id, shopifyOrderId, shopifyLineItemId, quantity } = req.body;
+    console.log(`id ${id}`);
+    console.log(`shopifyOrderId ${shopifyOrderId}`);
+    console.log(`shopifyLineItemId ${shopifyLineItemId}`);
+    console.log(`quantity ${quantity}`);
+
+    if (!shopifyOrderId || !shopifyLineItemId || !quantity) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    //const refundResult = await refundItem(shopifyOrderId, shopifyLineItemId, quantity);
+    const refundResult = {};
+
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+
+    if (!item.flags.includes("Refunded")) {
+      item.flags.push("Refunded");
+    }
+    await order.save();
+
+    res.json({
+      message: "Refund processed successfully",
+      data: refundResult,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Error processing refund", error: error.message });
   }
 };
 
@@ -450,6 +489,7 @@ module.exports = {
   undoItem,
   cancelSubItem,
   confirmSubItem,
+  refundLineItem, 
   packPlusItem,
   packMinusItem,
   startPacking,

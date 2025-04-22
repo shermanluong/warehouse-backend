@@ -11,6 +11,7 @@ const substitutionSchema = new mongoose.Schema({
 }, { _id: false });
 
 const lineItemSchema = new mongoose.Schema({
+  shopifyLineItemId: String, // <-- Add this
   productId: String,
   variantId: String,
   quantity: Number,
@@ -21,7 +22,7 @@ const lineItemSchema = new mongoose.Schema({
   substitution: substitutionSchema,
   flags: {
     type: [String],
-    enum: ['Out Of Stock', 'Damaged', 'substitution requested'],
+    enum: ['Out Of Stock', 'Damaged', 'Refunded', 'substitution requested'],
   },
   adminNote: String,
   customerNote: String

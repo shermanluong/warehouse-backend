@@ -1,5 +1,5 @@
 // src/controllers/shopify.controller.js
-const { getOrders, getProductImageUrl } = require('../services/shopify.service');
+const { getOrders, getProductImageUrl, refundItem } = require('../services/shopify.service');
 const Order = require('../models/order.model');
 const User  = require('../models/user.model');
 const Product = require('../models/product.model'); // Adjust the path
@@ -21,6 +21,7 @@ const fetchAndStoreOrders = async (req, res) => {
     const picker = await assignLeastBusyPicker();
 
     const lineItems = order.line_items.map((item) => ({
+      shopifyLineItemId: item.id,  // <--- store this
       productId: item.product_id,
       variantId: item.variant_id,
       quantity: item.quantity,
@@ -177,6 +178,7 @@ const syncAllShopifyProducts = async () => {
 
   res.json({ message: '✅ Finished syncing all products'});
 };
+
 
 module.exports = { 
   fetchAndStoreOrders,
