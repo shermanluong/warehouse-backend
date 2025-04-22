@@ -1,12 +1,18 @@
 const express = require('express');
-const { getSubstitution, createSubstitution } = require('../controllers/substitution.controller');
-
+const { 
+    getSubstitution, 
+    createRule,
+    addSubstitution,
+    deleteRule,
+    deleteSubstitute
+} = require('../controllers/substitution.controller');
+const auth = require('../middleware/auth.middleware');
 const router = express.Router();
 
-// Get substitution suggestion for a product
-router.get('/details', getSubstitution);
-
-// Admin can define new substitution rule
-router.post('/', createSubstitution);
+router.get("/rules", auth(['admin']), getSubstitution);
+router.post('/rules', auth(['admin']), createRule);
+router.put("/rules/:id/add-substitute", auth(['admin']),  addSubstitution);
+router.delete("/rules/:id", auth(['admin']),  deleteRule);
+router.put("/rules/:id/remove-substitute", auth(['admin']), deleteSubstitute);
 
 module.exports = router;

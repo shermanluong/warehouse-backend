@@ -4,141 +4,141 @@ const Product = require('../models/product.model');
 // Get smart substitution rule for a product
 const getSubstitution = async (req, res) => {
   try {
-    const { productId, variantId } = req.query;
+    const rules = await SubstitutionRule.find();
+    const products = await Product.find();
 
-    if (!productId || !variantId) {
-      return res.status(400).json({ error: 'Missing productId or variantId' });
-    }
+    // Helper to find variant + its parent product
+    const findVariantWithProduct = (productId, variantId) => {
+      const product = products.find(p => p.shopifyProductId === productId);
+      if (!product) return null;
 
-    // 1. Find substitution rule
-    const rule = await SubstitutionRule.findOne({
-      originalProductId: productId,
-      originalVariantId: variantId,
+      const variant = product.variants.find(v => v.shopifyVariantId === variantId);
+      if (!variant) return null;
+
+      return {
+        title: variant.title === "Default Title" ? product.title : variant.title,
+        image: variant.image || product.image || "/placeholder.png",
+        sku: variant.sku,
+        price: variant.price,
+        shopifyProductId: productId,
+        shopifyVariantId: variantId,
+      };
+    };
+
+    const enriched = rules.map(rule => {
+      const originProduct = findVariantWithProduct(rule.originalProductId, rule.originalVariantId);
+
+      const enrichedSubstitutes = rule.substitutes.map(sub => ({
+        substituteProductId: sub.substituteProductId,
+        substituteVariantId: sub.substituteVariantId,
+        reason: sub.reason,
+        priority: sub.priority,
+        substituteProduct: findVariantWithProduct(sub.substituteProductId, sub.substituteVariantId)
+      }));
+
+      return {
+        _id: rule._id,
+        originalProductId: rule.originalProductId,
+        originalVariantId: rule.originalVariantId,
+        originProduct,
+        substitutes: enrichedSubstitutes,
+        createdBy: rule.createdBy,
+        createdAt: rule.createdAt
+      };
     });
 
-    if (!rule) {
-      return res.status(404).json({ error: 'Substitution rule not found' });
-    }
-
-    // 2. Get original product
-    const originalProduct = await Product.findOne({
-      shopifyProductId: productId,
-      'variants.shopifyVariantId': variantId,
-    });
-
-    const originalVariant = originalProduct?.variants.find(
-      v => v.shopifyVariantId === variantId
-    );
-
-    if (!originalVariant) {
-      return res.status(404).json({ error: 'Original variant not found' });
-    }
-
-    // 3. Fetch all substitute variants and their product info
-    const substituteIds = rule.substitutes.map(s => s.substituteVariantId);
-
-    const substituteProducts = await Product.find({
-      'variants.shopifyVariantId': { $in: substituteIds }
-    });
-
-    const substituteVariantsDetailed = [];
-
-    for (const substitute of rule.substitutes) {
-      const parentProduct = substituteProducts.find(p =>
-        p.variants.some(v => v.shopifyVariantId === substitute.substituteVariantId)
-      );
-      const variant = parentProduct?.variants.find(
-        v => v.shopifyVariantId === substitute.substituteVariantId
-      );
-      if (parentProduct && variant) {
-        substituteVariantsDetailed.push({
-          substituteProductId: substitute.substituteProductId,
-          substituteVariantId: substitute.substituteVariantId,
-          reason: substitute.reason,
-          priority: substitute.priority,
-          productTitle: parentProduct.title,
-          image: parentProduct.image,
-          variantTitle: variant.title,
-          sku: variant.sku,
-          price: variant.price
-        });
-      }
-    }
-
-    // 4. Send response
-    res.json({
-      original: {
-        productId,
-        variantId,
-        productTitle: originalProduct?.title,
-        image: originalProduct?.image,
-        variantTitle: originalVariant?.title,
-        sku: originalVariant?.sku,
-        price: originalVariant?.price,
-      },
-      substitutes: substituteVariantsDetailed,
-    });
-
+    res.json({ rules: enriched });
   } catch (err) {
-    console.error('Error fetching substitution rule details:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("getSubstitution error:", err);
+    res.status(500).json({ message: "Failed to fetch substitution rules." });
   }
 };
 
-// Admin creates substitution rule
-const createSubstitution = async (req, res) => {
+// Create Rule
+const createRule = async (req, res) => {
+  const { originalProductId, originalVariantId } = req.body;
+
+  if (!originalProductId || !originalVariantId) {
+    return res.status(400).json({ error: "Missing product or variant ID" });
+  }
+  console.log(req.user);
+  if (!req.user || !req.user.userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
   try {
-    const {
-      originalProductId,
-      originalVariantId,
-      substitutes,
-      createdBy,
-    } = req.body;
-
-    if (!originalVariantId || !Array.isArray(substitutes) || substitutes.length === 0) {
-      return res.status(400).json({ error: 'Missing required fields.' });
+    const exists = await SubstitutionRule.findOne({ originalVariantId });
+    if (exists) {
+      return res.status(400).json({ error: "Rule already exists" });
     }
 
-    // Try to find existing rule
-    let rule = await SubstitutionRule.findOne({
+    const rule = await SubstitutionRule.create({
       originalProductId,
       originalVariantId,
+      substitutes: [],
+      createdBy: req.user.id
     });
 
-    if (rule) {
-      // Filter out duplicates based on substituteVariantId
-      const existingVariantIds = rule.substitutes.map(s => s.substituteVariantId);
-      const newSubstitutes = substitutes.filter(
-        s => !existingVariantIds.includes(s.substituteVariantId)
-      );
-
-      if (newSubstitutes.length === 0) {
-        return res.status(200).json({ message: 'No new substitutes added. All already exist.' });
-      }
-
-      rule.substitutes.push(...newSubstitutes);
-      await rule.save();
-      return res.status(200).json(rule);
-    }
-
-    // Create new rule
-    rule = new SubstitutionRule({
-      originalProductId,
-      originalVariantId,
-      substitutes,
-      createdBy,
-    });
-
-    await rule.save();
-    res.status(201).json(rule);
-
+    res.json(rule);
   } catch (err) {
-    console.error('Error saving substitution rule:', err);
-    res.status(500).json({ error: 'Internal server error.' });
+    console.error("Error creating rule:", err);
+    res.status(500).json({ error: "Failed to create rule", details: err.message });
+  }
+};
+
+const addSubstitution = async (req, res) => {
+  const { substituteProductId, substituteVariantId } = req.body;
+  try {
+    const rule = await SubstitutionRule.findByIdAndUpdate(
+      req.params.id,
+      {
+        $push: {
+          substitutes: {
+            substituteProductId,
+            substituteVariantId,
+            reason: "Out of stock",
+          }
+        }
+      },
+      { new: true }
+    );
+    res.json(rule);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to add substitute" });
+  }
+};
+
+const deleteRule = async (req, res) => {
+  try {
+    await SubstitutionRule.findByIdAndDelete(req.params.id);
+    res.json({ message: "Rule deleted" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete rule" });
+  }
+};
+
+const deleteSubstitute = async (req, res) => {
+
+  const { substituteVariantId } = req.body;
+  console.log(req.params.id);
+  console.log(substituteVariantId);
+
+  try {
+    const rule = await SubstitutionRule.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { substitutes: { substituteVariantId } } },
+      { new: true }
+    );
+    res.json(rule);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to remove substitute" });
   }
 };
 
 module.exports = {
   getSubstitution,
-  createSubstitution
+  createRule,
+  addSubstitution,
+  deleteRule,
+  deleteSubstitute
 };

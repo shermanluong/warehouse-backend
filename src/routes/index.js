@@ -16,7 +16,7 @@ router.use('/packer', packerRoutes);
 router.use('/admin', adminRoutes);
 router.use('/user', userRoutes);
 router.use('/webhooks', webhookRoutes);
-router.use('/substitutions', substitutionRoutes);
+router.use('/substitution', substitutionRoutes);
 router.use('/orders', orderRoutes);
 
 module.exports = router;
