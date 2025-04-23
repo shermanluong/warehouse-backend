@@ -9,6 +9,7 @@ const userRoutes = require('./user.routes');
 const webhookRoutes = require('./webhook.routes');
 const substitutionRoutes = require('./substitution.routes');
 const orderRoutes = require('./order.routes');
+const uploadRoutes = require('./upload.routes');
 
 router.use('/shopify', shopifyRoutes);
 router.use('/picker', pickerRoutes);
@@ -18,5 +19,6 @@ router.use('/user', userRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/substitution', substitutionRoutes);
 router.use('/orders', orderRoutes);
+router.use('/upload', uploadRoutes);
 
 module.exports = router;
