@@ -39,6 +39,8 @@ const fetchAndStoreOrders = async (req, res) => {
       {
         $set: {
           shopifyOrderId: order.id,
+          name: order.name,
+          orderNumber: order.order_number,
           status: 'new',
           orderNote: order.note, // general order-level customer note
           pickerId: picker._id,

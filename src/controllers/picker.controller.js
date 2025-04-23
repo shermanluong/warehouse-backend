@@ -19,6 +19,8 @@ const getPickerOrders = async (req, res) => {
       {
         $project: {
           shopifyOrderId: 1,
+          name: 1,
+          orderNumber: 1,
           status: 1,
           pickerId: 1,
           packerId: 1,
@@ -187,6 +189,8 @@ const getPickingOrder = async (req, res) => {
         $group: {
           _id: "$_id",
           shopifyOrderId: { $first: "$shopifyOrderId" },
+          name: { $first: "$name" },
+          orderNumber: { $first: "$orderNumber" },
           orderNote: { $first: "$orderNote" },
           adminNote: { $first: "$adminNote" },
           status: { $first: "$status" },

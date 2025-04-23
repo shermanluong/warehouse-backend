@@ -50,6 +50,8 @@ const photoSchema = new mongoose.Schema({
 
 const orderSchema = new Schema({
   shopifyOrderId: { type: String, required: true, unique: true },
+  name: String,
+  orderNumber: Number,
   status: {
     type: String,
     enum: ['new', 'picking', 'picked', 'packing', 'packed', 'delivered'],
