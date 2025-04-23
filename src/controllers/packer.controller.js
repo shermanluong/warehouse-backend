@@ -4,6 +4,7 @@ const { Types } = require('mongoose');
 const ObjectId = Types.ObjectId;
 const { adjustShopifyInventory} = require('../services/shopify.service');
 const { refundItem } = require('../services/shopify.service');
+const axios = require('axios');
 
 // const locate2UService = require('../services/locate2u.service'); // optional
 // const photoUploader = require('../services/photo.service');       // optional
@@ -185,6 +186,7 @@ const getPackingOrder = async (req, res) => {
           createdAt: { $first: "$createdAt" },
           customer: { $first: "$customer" },
           delivery: { $first: "$delivery" },
+          photos: { $first: "$photos" },
           lineItems: { $push: "$lineItems" }
         }
       },
@@ -401,6 +403,65 @@ const packPlusItem =  async (req, res) => {
   res.json({ success: true, item });
 }
 
+const savePhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { photoUrl, fileId } = req.body;
+
+    if (!photoUrl || !fileId) {
+      return res.status(400).json({ message: 'Photo URL and fileId are required' });
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    order.photos = order.photos || [];
+    order.photos.push({ photoUrl, fileId }); // ⬅️ match schema
+
+    await order.save();
+
+    res.json({ message: 'Photo saved', photos: order.photos });
+  } catch (err) {
+    console.error('Error saving photo:', err);
+    res.status(500).json({ message: 'Server error saving photo' });
+  }
+};
+
+const deletePhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fileId } = req.body;
+
+    if (!fileId) {
+      return res.status(400).json({ message: 'fileId is required' });
+    }
+
+    // Delete from ImageKit
+    const imagekitRes = await axios.delete('https://api.imagekit.io/v1/files/' + fileId, {
+      headers: {
+        Authorization: `Basic ${Buffer.from(process.env.IMAGEKIT_PRIVATE_KEY + ':').toString('base64')}`
+      }
+    });
+
+    // Remove from Order in DB
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    order.photos = (order.photos || []).filter(photo => photo.fileId !== fileId);
+    await order.save();
+
+    res.json({ message: 'Photo deleted successfully', remainingPhotos: order.photos });
+
+  } catch (err) {
+    console.error('Delete Photo Error:', err.response?.data || err.message);
+    res.status(500).json({ message: 'Error deleting photo' });
+  }
+}
+
 //PATCH /api/packer/order/:id/pack-minus
 const packMinusItem =  async (req, res) => {
   const { id } = req.params;
@@ -493,5 +554,7 @@ module.exports = {
   packPlusItem,
   packMinusItem,
   startPacking,
+  savePhoto,
+  deletePhoto,
   finalisePack,
 };

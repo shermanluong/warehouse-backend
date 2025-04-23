@@ -10,6 +10,8 @@ const { getPickedOrders,
         refundLineItem,
         packPlusItem,
         packMinusItem,
+        savePhoto,
+        deletePhoto,
         finalisePack 
 } = require('../controllers/packer.controller');
 const router = express.Router();
@@ -22,6 +24,8 @@ router.patch('/order/:id/pack-minus', auth(['packer']), packMinusItem);
 router.patch('/order/:id/undo-item', auth(['packer']), undoItem);
 router.patch('/order/:id/cancel-sub-item', auth(['packer']), cancelSubItem);
 router.patch('/order/:id/confirm-sub-item', auth(['packer']), confirmSubItem);
+router.patch('/order/:id/save-photo', auth(['packer']), savePhoto);
+router.delete('/order/:id/delete-photo', auth(['packer']), deletePhoto);
 router.post('/refund-item', auth(['packer']), refundLineItem);
 router.post('/startPacking/:orderId', auth(['packer']), startPacking);
 router.post('/finalise', auth(['packer']), finalisePack);

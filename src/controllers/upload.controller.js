@@ -21,7 +21,10 @@ const uploadImage = async (req, res) => {
         }
       );
   
-      res.json({ url: imagekitRes.data.url });
+      res.json({ 
+        url: imagekitRes.data.url,
+        fileId: imagekitRes.data.fileId  // <- Save this! 
+      });
     } catch (err) {
       console.error("ImageKit Upload Error:", err.response?.data || err.message);
       res.status(500).json({ error: "Upload failed" });

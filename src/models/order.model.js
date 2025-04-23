@@ -43,6 +43,11 @@ const deliverySchema = new mongoose.Schema({
   eta: Date
 }, { _id: false });
 
+const photoSchema = new mongoose.Schema({
+  photoUrl: String,
+  fileId: String,
+}, { _id: false });
+
 const orderSchema = new Schema({
   shopifyOrderId: { type: String, required: true, unique: true },
   status: {
@@ -55,7 +60,7 @@ const orderSchema = new Schema({
   pickerId: { type: Types.ObjectId, ref: 'User', default: null },
   packerId: { type: Types.ObjectId, ref: 'User', default: null },
   lineItems: [lineItemSchema],
-  photoUrl: String,
+  photos: [photoSchema], // <-- changed from photoUrl: String
   delivery: deliverySchema,
   logs: [logSchema],
   customer: {
