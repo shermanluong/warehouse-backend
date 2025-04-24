@@ -188,6 +188,8 @@ const getOrders = async (req, res) => {
         $group: {
           _id: '$_id',
           shopifyOrderId: { $first: '$shopifyOrderId' },
+          name: { $first: '$name' },
+          orderNumber: { $first: '$orderNumber' },
           status: { $first: '$status' },
           createdAt: { $first: '$createdAt' },
           customer: { $first: '$customer' },
