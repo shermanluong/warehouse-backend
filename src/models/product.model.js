@@ -7,7 +7,7 @@ const variantSchema = new mongoose.Schema({
   barcode: String,
   price: String,
   inventory_quantity: Number,
-  image: String, // Add this line
+  image: String,
 }, { _id: false });
 
 const productSchema = new mongoose.Schema({
@@ -15,7 +15,11 @@ const productSchema = new mongoose.Schema({
   title: String,
   handle: String,
   vendor: String,
-  status: String,
+  status: {
+    type: String,
+    enum: ['active', 'draft', 'archived'],
+    default: 'active',
+  },
   image: String,
   variants: [variantSchema],
 }, { timestamps: true });

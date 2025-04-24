@@ -6,6 +6,8 @@ const {
   getOrders,
   getOrder,
   getProducts,
+  getProductStatuses,
+  getProductVendors,
   addOrderNote,
   addItemNote
 } = require('../controllers/admin.controller');
@@ -19,6 +21,8 @@ router.get('/stats', auth(['admin']), getDashboardStats);
 router.get('/getOrders', auth(['admin']), getOrders);
 router.get('/order/:id', auth(['admin']), getOrder);  
 router.get('/getProducts', auth(['admin']), getProducts); 
+router.get('/getProductVendors', auth(['admin']), getProductVendors); 
+router.get('/getProductStatuses', auth(['admin']), getProductStatuses); 
 router.patch('/order/:orderId/add-order-note', auth(['admin']), addOrderNote); 
 router.patch('/order/:orderId/add-item-note', auth(['admin']), addItemNote); 
 

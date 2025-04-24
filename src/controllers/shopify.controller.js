@@ -75,7 +75,6 @@ const fetchAndStoreOrders = async (req, res) => {
   res.json({ message: 'Synced', count: orders.length });
 };
 
-
 const GET_ALL_PRODUCTS_QUERY = `
   query getAllProducts($cursor: String) {
     products(first: 100, after: $cursor) {
@@ -120,7 +119,7 @@ const GET_ALL_PRODUCTS_QUERY = `
   }
 `;
 
-const syncAllShopifyProducts = async () => {
+const syncAllShopifyProducts = async (req, res) => {
   const shop    = process.env.SHOPIFY_SHOP;
   const token   = process.env.SHOPIFY_TOKEN;
   const version = process.env.SHOPIFY_API_VERSION || '2024-10';
@@ -128,59 +127,64 @@ const syncAllShopifyProducts = async () => {
   let hasNextPage = true;
   let cursor = null;
 
-  while (hasNextPage) {
-    const response = await axios.post(
-      `https://${shop}/admin/api/${version}/graphql.json`,
-      {
-        query: GET_ALL_PRODUCTS_QUERY,
-        variables: { cursor },
-      },
-      {
-        headers: {
-          'X-Shopify-Access-Token': token,
-          'Content-Type': 'application/json',
+  try {
+    while (hasNextPage) {
+      const response = await axios.post(
+        `https://${shop}/admin/api/${version}/graphql.json`,
+        {
+          query: GET_ALL_PRODUCTS_QUERY,
+          variables: { cursor },
         },
-      }
-    );
-
-    const products = response.data.data.products;
-    for (const edge of products.edges) {
-      const p = edge.node;
-      const shopifyProductId = p.id.split('/').pop();
-      const image = p.images.edges[0]?.node?.originalSrc || '';
-
-      const productDoc = {
-        shopifyProductId,
-        title: p.title,
-        handle: p.handle,
-        vendor: p.vendor,
-        status: p.status,
-        image,
-        variants: p.variants.edges.map(({ node }) => ({
-          shopifyVariantId: node.id.split('/').pop(),
-          title: node.title,
-          sku: node.sku,
-          barcode: node.barcode,
-          price: node.price,
-          inventory_quantity: node.inventoryQuantity,
-          image: node.image?.originalSrc || '', // ← new line
-        })),
-      };
-
-      await Product.findOneAndUpdate(
-        { shopifyProductId },
-        { $set: productDoc },
-        { upsert: true }
+        {
+          headers: {
+            'X-Shopify-Access-Token': token,
+            'Content-Type': 'application/json',
+          },
+        }
       );
+
+      const products = response.data.data.products;
+      for (const edge of products.edges) {
+        const p = edge.node;
+        const shopifyProductId = p.id.split('/').pop();
+        const image = p.images.edges[0]?.node?.originalSrc || '';
+
+        const productDoc = {
+          shopifyProductId,
+          title: p.title,
+          handle: p.handle,
+          vendor: p.vendor,
+          status: p.status,
+          image,
+          variants: p.variants.edges.map(({ node }) => ({
+            shopifyVariantId: node.id.split('/').pop(),
+            title: node.title,
+            sku: node.sku,
+            barcode: node.barcode,
+            price: node.price,
+            inventory_quantity: node.inventoryQuantity,
+            image: node.image?.originalSrc || '',
+          })),
+        };
+
+        await Product.findOneAndUpdate(
+          { shopifyProductId },
+          { $set: productDoc },
+          { upsert: true, new: true }
+        );
+      }
+
+      hasNextPage = products.pageInfo.hasNextPage;
+      cursor = products.pageInfo.endCursor;
     }
 
-    hasNextPage = products.pageInfo.hasNextPage;
-    cursor = products.pageInfo.endCursor;
+    res.json({ message: '✅ Finished syncing all products' });
+
+  } catch (error) {
+    console.error('Error syncing products:', error?.response?.data || error.message);
+    res.status(500).json({ error: '❌ Failed to sync products' });
   }
-
-  res.json({ message: '✅ Finished syncing all products'});
 };
-
 
 module.exports = { 
   fetchAndStoreOrders,

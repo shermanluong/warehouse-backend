@@ -361,16 +361,24 @@ const getProducts = async (req, res) => {
   const sortField = req.query.sort || 'title';
   const sortOrder = req.query.order === 'desc' ? -1 : 1;
   const tag = req.query.tag;
+  const vendor = req.query.vendor;
+  const status = req.query.status;
 
   const query = {
-    $or: [
-      { title: { $regex: search, $options: 'i' } },
-      { 'variants.title': { $regex: search, $options: 'i' } },
-      { 'variants.sku': { $regex: search, $options: 'i' } },
+    $and: [
+      {
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { 'variants.title': { $regex: search, $options: 'i' } },
+          { 'variants.sku': { $regex: search, $options: 'i' } },
+        ]
+      }
     ]
   };
 
-  if (tag) query.tags = tag;
+  if (tag) query.$and.push({ tags: tag });
+  if (vendor) query.$and.push({ vendor });
+  if (status) query.$and.push({ status });
 
   const total = await Product.countDocuments(query);
 
@@ -382,6 +390,26 @@ const getProducts = async (req, res) => {
   res.json({ products, total });
 };
 
+const getProductVendors = async (req, res) => {
+  try {
+    const vendors = await Product.distinct('vendor');
+    res.json({ vendors });
+  } catch (err) {
+    console.error('Failed to fetch vendors:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+const getProductStatuses = async (req, res) => {
+  try {
+    const statuses = await Product.distinct('status');
+    res.json({ statuses });
+  } catch (err) {
+    console.error('Failed to fetch statuses:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
 module.exports = {
   getLogs,
   getDashboardStats,
@@ -389,5 +417,7 @@ module.exports = {
   getOrder,
   getProducts,
   addOrderNote,
-  addItemNote
+  addItemNote,
+  getProductVendors,
+  getProductStatuses
 };
