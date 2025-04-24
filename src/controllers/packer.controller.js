@@ -4,6 +4,8 @@ const { Types } = require('mongoose');
 const ObjectId = Types.ObjectId;
 const { adjustShopifyInventory} = require('../services/shopify.service');
 const { refundItem } = require('../services/shopify.service');
+const createNotification = require('../utils/createNotification');
+const { getVariantDisplayTitle } = require('../utils/getVariantTitle');
 const axios = require('axios');
 
 // const locate2UService = require('../services/locate2u.service'); // optional
@@ -368,7 +370,18 @@ const refundLineItem = async (req, res) => {
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
     if (!item.flags.includes("Refunded")) {
-      item.flags.push("Refunded");
+      const title = await getVariantDisplayTitle(item.productId, item.variantId);
+    
+      await createNotification({
+        type: 'REFUND',
+        message: `${title} was refunded in order ${order.name}.`,
+        userRoles: ['admin'],
+        relatedOrderId: order._id,
+        relatedProductId: item.productId,
+        relatedVariantId: item.variantId
+      });
+    
+      item.flags = [...item.flags, "Refunded"]; // Safer way to push flag
     }
     await order.save();
 

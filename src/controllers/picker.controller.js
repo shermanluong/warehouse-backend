@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Order = require('../models/order.model');
 const createNotification = require('../utils/createNotification');
+const { getVariantDisplayTitle } = require('../utils/getVariantTitle');
 
 // Fetch orders assigned to the picker (e.g., from query param or session)
 const getPickerOrders = async (req, res) => {
@@ -364,7 +365,7 @@ const undoItem = async (req, res) => {
 const pickFlagItem = async (req, res) => {
   const { id } = req.params;
   const { productId, variantId, reason, substituteProductId, substituteVariantId } = req.body;
-
+  console.log(`variant id ${variantId}`);
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
 
@@ -373,9 +374,10 @@ const pickFlagItem = async (req, res) => {
 
   item.picked = false;
   if (!item.flags.includes(reason)) {
+    const title = await getVariantDisplayTitle(productId, variantId);
     await createNotification({
       type: reason,
-      message: `${productId} was flaged as '${reason}' in order ${order.name}.`,
+      message: `${title} was marked as '${reason}' in order ${order.name}.`,
       userRoles: ['admin'],
       relatedOrderId: order._id,
       relatedProductId: productId,
@@ -385,6 +387,18 @@ const pickFlagItem = async (req, res) => {
   }
 
   if (substituteProductId && substituteVariantId) {
+    const title = await getVariantDisplayTitle(productId, variantId);
+    const susTitle = await getVariantDisplayTitle(substituteProductId, substituteVariantId);
+
+    await createNotification({
+      type: "SUBSTITUTION",
+      message: `${title} was substituted with ${susTitle} in order ${order.name} due to ${reason}.`,
+      userRoles: ['admin'],
+      relatedOrderId: order._id,
+      relatedProductId: productId,
+      relatedVariantId: variantId
+    });
+
     item.substitution = {
       used: false,
       originalProductId: productId,
