@@ -9,16 +9,17 @@ const {
   addOrderNote,
   addItemNote
 } = require('../controllers/admin.controller');
+const auth = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
 // Admin logs & dashboard stats
-router.get('/logs', getLogs);
-router.get('/stats', getDashboardStats); 
-router.get('/getOrders', getOrders);
-router.get('/order/:id', getOrder);  
-router.get('/getProducts', getProducts); 
-router.patch('/order/:orderId/add-order-note', addOrderNote); 
-router.patch('/order/:orderId/add-item-note', addItemNote); 
+router.get('/logs', auth(['admin']), getLogs);
+router.get('/stats', auth(['admin']), getDashboardStats); 
+router.get('/getOrders', auth(['admin']), getOrders);
+router.get('/order/:id', auth(['admin']), getOrder);  
+router.get('/getProducts', auth(['admin']), getProducts); 
+router.patch('/order/:orderId/add-order-note', auth(['admin']), addOrderNote); 
+router.patch('/order/:orderId/add-item-note', auth(['admin']), addItemNote); 
 
 module.exports = router;

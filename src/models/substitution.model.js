@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const { Schema, Types } = mongoose;
 
 const substitutionRuleSchema = new mongoose.Schema({
   originalProductId: String,           // Shopify Product ID of the original item

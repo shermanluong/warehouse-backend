@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Order = require('../models/order.model');
+const createNotification = require('../utils/createNotification');
 
 // Fetch orders assigned to the picker (e.g., from query param or session)
 const getPickerOrders = async (req, res) => {
@@ -372,6 +373,14 @@ const pickFlagItem = async (req, res) => {
 
   item.picked = false;
   if (!item.flags.includes(reason)) {
+    await createNotification({
+      type: reason,
+      message: `${productId} was flaged as '${reason}' in order ${order.name}.`,
+      userRoles: ['admin'],
+      relatedOrderId: order._id,
+      relatedProductId: productId,
+      relatedVariantId: variantId
+    });
     item.flags.push(reason);
   }
 
