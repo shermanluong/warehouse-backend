@@ -37,15 +37,15 @@ const logSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 }, { _id: false });
 
+const photoSchema = new mongoose.Schema({
+  photoUrl: String,
+  fileId: String,
+}, { _id: false });
+
 const deliverySchema = new mongoose.Schema({
   driverName: String,
   routeNumber: String,
   eta: Date
-}, { _id: false });
-
-const photoSchema = new mongoose.Schema({
-  photoUrl: String,
-  fileId: String,
 }, { _id: false });
 
 const orderSchema = new Schema({

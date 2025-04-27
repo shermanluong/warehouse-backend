@@ -11,6 +11,7 @@ const substitutionRoutes = require('./substitution.routes');
 const orderRoutes = require('./order.routes');
 const uploadRoutes = require('./upload.routes');
 const notificationRoutes = require('./notification.routes');
+const locate2uRoutes = require('./locate2u.routes');
 
 router.use('/shopify', shopifyRoutes);
 router.use('/picker', pickerRoutes);
@@ -22,5 +23,6 @@ router.use('/substitution', substitutionRoutes);
 router.use('/orders', orderRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/notification', notificationRoutes);
+router.use('/locate2u', locate2uRoutes);
 
 module.exports = router;
