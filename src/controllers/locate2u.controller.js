@@ -3,7 +3,12 @@ const User = require('../models/user.model');
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
 const mongoose = require('mongoose');
-const { getLocate2uTokenService, getLocate2uTripsService, getLocate2uTripDetailService } = require('../services/locate2u.service');
+const { 
+  getLocate2uTokenService, 
+  getLocate2uTripsService, 
+  getLocate2uTripDetailService,
+  getLocate2uStopsService
+} = require('../services/locate2u.service');
 const { default: axios } = require('axios');
 
 const getToken = async (req, res) => {
@@ -101,27 +106,9 @@ const getLocate2uTrips = async (req, res) => {
   }
 
   const token = await getLocate2uTokenService();
-
-  const stopDetials = [];
-
   try {
-    const trips = await getLocate2uTripsService(tripDate, token);
-
-    // Use for...of to handle async await in the loop
-    for (const trip of trips) {
-      console.log(trip);
-      const tripDetail = await getLocate2uTripDetailService(trip.tripId, token);
-      tripDetail.stops.forEach(stop => {
-        stopDetials.push({
-          oderId: stop?.customFields?.orderid || null, 
-          tripId: tripDetail?.tripId, 
-          driverName: trip?.driverName,
-          stopNumber: stop?.order
-        })
-      });
-    }
-
-    return res.json(stopDetials);
+    const stopDetails = await getLocate2uStopsService(tripDate, token);
+    return res.json(stopDetails);
   } catch (error) {
     console.error('Error fetching trip details:', error.message);
     return res.status(500).json({ error: 'Failed to fetch trip details' });

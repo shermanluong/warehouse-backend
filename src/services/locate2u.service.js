@@ -68,4 +68,36 @@ const getLocate2uTripDetailService = async (tripId, token) => {
     }
 };
 
-module.exports = { getLocate2uTokenService, getLocate2uTripsService, getLocate2uTripDetailService};
+const getLocate2uStopsService = async (tripDate, token) => {
+    const stopDetails = [];
+  
+    try {
+      const trips = await getLocate2uTripsService(tripDate, token);
+  
+      // Use for...of to handle async await in the loop
+      for (const trip of trips) {
+        const tripDetail = await getLocate2uTripDetailService(trip.tripId, token);
+        tripDetail.stops.forEach(stop => {
+            stopDetails.push({
+                oderId: stop?.customFields?.orderid || null, 
+                tripId: tripDetail?.tripId, 
+                tripDate: stop?.tripDate,
+                driverName: trip?.driverName,
+                stopNumber: stop?.order
+            })
+        });
+      }
+  
+      return stopDetails;
+    } catch (error) {
+      console.error('Error fetching stops:', error.message);
+      throw new Error('Failed to fetch stops');
+    }
+};
+
+module.exports = { 
+    getLocate2uTokenService, 
+    getLocate2uTripsService, 
+    getLocate2uTripDetailService, 
+    getLocate2uStopsService
+};
