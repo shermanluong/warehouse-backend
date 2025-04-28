@@ -44,8 +44,10 @@ const photoSchema = new mongoose.Schema({
 
 const deliverySchema = new mongoose.Schema({
   driverName: String,
-  routeNumber: String,
+  tripId: String,
+  tripDate: String,
   stopNumber: Number,
+  driverMemberId: String
 }, { _id: false });
 
 const orderSchema = new Schema({
@@ -59,6 +61,7 @@ const orderSchema = new Schema({
   },
   orderNote: String,
   adminNote: String,
+  tags: String,
   pickerId: { type: Types.ObjectId, ref: 'User', default: null },
   packerId: { type: Types.ObjectId, ref: 'User', default: null },
   lineItems: [lineItemSchema],

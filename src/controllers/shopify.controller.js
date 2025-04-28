@@ -7,6 +7,7 @@ const axios = require('axios');
 const { 
   getLocate2uStopsService
 } = require('../services/locate2u.service');
+const { formatDate } = require('../utils/formateDate');
 
 const assignLeastBusyPicker = async () => {
   const picker = await User.findOne({ role: 'picker', active: true })
@@ -18,16 +19,23 @@ const assignLeastBusyPicker = async () => {
 
 const fetchAndStoreOrders = async (req, res) => {
   const { tripDate } = req.query;
-  console.log(tripDate);
-  const orders = await getOrders(tripDate); // Pull unfulfilled orders from Shopify
+  const orders = await getOrders([formatDate(tripDate)]); // Pull unfulfilled orders from Shopify
   const stops = await getLocate2uStopsService(tripDate);
-  console.log(stops.length);
-  for (const order of orders) {
+  console.log("orders count", orders.length);
+  console.log("stops count", stops.length);
+
+  const filteredOrders = orders.filter(order => {
+    // Check if the orderId exists in the stops array
+    const stop = stops.find(s => s.orderId == order.order_number);
+    return stop !== undefined; // This will return true if a corresponding stop is found
+  });
+
+  for (const order of filteredOrders) {
     const customer = order.customer;
     const picker = await assignLeastBusyPicker();
 
     const lineItems = order.line_items.map((item) => ({
-      shopifyLineItemId: item.id,  // <--- store this
+      shopifyLineItemId: item.id,  
       productId: item.product_id,
       variantId: item.variant_id,
       quantity: item.quantity,
@@ -39,6 +47,8 @@ const fetchAndStoreOrders = async (req, res) => {
       adminNote: '', // You can populate this manually or from your product DB
       customerNote: item.properties?.find(p => p.name === 'Note')?.value || '',
     }));
+    
+    const stop = stops.find(s => s.orderId == order.order_number);
 
     await Order.findOneAndUpdate(
       { shopifyOrderId: order.id },
@@ -48,8 +58,10 @@ const fetchAndStoreOrders = async (req, res) => {
           name: order.name,
           orderNumber: order.order_number,
           status: 'new',
+          tags: order.tags,
           orderNote: order.note, // general order-level customer note
           pickerId: picker._id,
+          delivery: stop,
           lineItems,
           customer: customer ? {
             id: customer.id,
@@ -78,7 +90,7 @@ const fetchAndStoreOrders = async (req, res) => {
     });
   }
 
-  res.json({ message: 'Synced', count: orders.length });
+  res.json({ message: 'Synced', count: filteredOrders.length });
 };
 
 const GET_ALL_PRODUCTS_QUERY = `

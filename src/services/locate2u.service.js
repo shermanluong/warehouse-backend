@@ -40,7 +40,13 @@ const getLocate2uTripsService = async (tripDate, token) => {
         }});
 
         if ( response.status == 200 && response.data) {
-            const trips = response.data.map(trip => { return {tripId: trip.tripId, driverName : trip.assignedTeamMemberName}});
+            const trips = response.data.map(trip => { 
+                return {
+                    tripId: trip.tripId, 
+                    teamMemberId: trip.assignedTeamMemberId,
+                    driverName : trip.assignedTeamMemberName
+                }
+            });
             return trips;
         } else {
             console.error('Failed find tripId');
@@ -73,7 +79,6 @@ const getLocate2uStopsService = async (tripDate, token = null) => {
         token = await getLocate2uTokenService();
     }
     const stopDetails = [];
-    console.log(token);
     try {
       const trips = await getLocate2uTripsService(tripDate, token);
   
@@ -86,6 +91,7 @@ const getLocate2uStopsService = async (tripDate, token = null) => {
                 tripId: tripDetail?.tripId, 
                 tripDate: stop?.tripDate,
                 driverName: trip?.driverName,
+                driverMemberId: trip?.teamMemberId,
                 stopNumber: stop?.order
             })
         });
