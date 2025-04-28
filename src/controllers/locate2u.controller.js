@@ -1,12 +1,7 @@
-const bcrypt = require('bcrypt');
-const User = require('../models/user.model');
-const Order = require('../models/order.model');
-const Product = require('../models/product.model');
+const Driver = require('../models/driver.model');
 const mongoose = require('mongoose');
 const { 
   getLocate2uTokenService, 
-  getLocate2uTripsService, 
-  getLocate2uTripDetailService,
   getLocate2uStopsService
 } = require('../services/locate2u.service');
 const { default: axios } = require('axios');
@@ -18,6 +13,36 @@ const getToken = async (req, res) => {
     res.json({ access_token: token });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+const getLocate2uMembers = async (req, res) => {
+  const token = await getLocate2uTokenService();
+
+  try {
+    const response = await axios.get(`${process.env.LOCATE2U_API_BASE_URL}/team-members`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      params: {
+        includeStartTime: true,
+        includeCurrentLocation: false,
+      }
+    });
+
+    const drivers = response.data;
+    for (const driver of drivers) {
+      await Driver.findOneAndUpdate(
+        { teamMemberId: driver.teamMemberId },
+        { $set: driver },
+        { upsert: true, new: true }
+      );
+    }
+
+    return res.json({message: "Updated driver database successfully."});
+  } catch (error) {
+    console.error('Failed to fetch orders:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Locate2u orders fetch failed' });
   }
 };
 
@@ -119,5 +144,6 @@ module.exports = {
   getToken,
   getLocate2uOrders,
   getLocate2uStops,
-  getLocate2uTrips
+  getLocate2uTrips,
+  getLocate2uMembers
 };

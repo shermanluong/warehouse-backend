@@ -68,9 +68,12 @@ const getLocate2uTripDetailService = async (tripId, token) => {
     }
 };
 
-const getLocate2uStopsService = async (tripDate, token) => {
+const getLocate2uStopsService = async (tripDate, token = null) => {
+    if (token == null) {
+        token = await getLocate2uTokenService();
+    }
     const stopDetails = [];
-  
+    console.log(token);
     try {
       const trips = await getLocate2uTripsService(tripDate, token);
   
@@ -79,7 +82,7 @@ const getLocate2uStopsService = async (tripDate, token) => {
         const tripDetail = await getLocate2uTripDetailService(trip.tripId, token);
         tripDetail.stops.forEach(stop => {
             stopDetails.push({
-                oderId: stop?.customFields?.orderid || null, 
+                orderId: stop?.customFields?.orderid || null, 
                 tripId: tripDetail?.tripId, 
                 tripDate: stop?.tripDate,
                 driverName: trip?.driverName,

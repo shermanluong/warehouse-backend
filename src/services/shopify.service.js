@@ -34,25 +34,44 @@ async function getProductImageUrl(productId) {
     }
 }
 
-const getOrders = async () => {
+const getOrders = async (tripDate, tags = []) => {
     const shop    = process.env.SHOPIFY_SHOP;
     const token   = process.env.SHOPIFY_TOKEN;
     const version = process.env.SHOPIFY_API_VERSION || '2024-10';
 
     const url = `https://${shop}/admin/api/${version}/orders.json`;
     console.log('SHOPIFY_SHOP_API:', url);
+    console.log(tripDate);
+    // Convert tripDate to ISO format (if needed) for filtering
+    const dateMin = new Date('2025-04-22'); // Assuming tripDate is passed in 'YYYY-MM-DD' format
+    dateMin.setUTCHours(0, 0, 0, 0); // Start of the day (UTC)
+    
+    const dateMax = new Date('2025-04-26');
+    dateMax.setUTCHours(23, 59, 59, 999); // End of the day (UTC)
 
-    const res = await axios.get(url, {
-        headers: {
-            'X-Shopify-Access-Token': token
-        },
-        params: {
-            fulfillment_status: 'unfulfilled',
-            limit: 50
-        }
-    });
+    // Convert tags array to a comma-separated string
+    const tagsQuery = tags.join(',');
 
-    return res.data.orders;
+    try {
+        const res = await axios.get(url, {
+            headers: {
+                'X-Shopify-Access-Token': token
+            },
+            params: {
+                //fulfillment_status: 'unfulfilled', // Only fetch unfulfilled orders
+                limit: 250,
+                created_at_min: dateMin.toISOString(),
+                created_at_max: dateMax.toISOString(),
+                // Filter by tags if provided
+                ...(tagsQuery && { 'tag': tagsQuery })
+            }
+        });
+
+        return res.data.orders;
+    } catch (error) {
+        console.error('Error fetching orders from Shopify:', error);
+        throw new Error('Failed to fetch orders from Shopify');
+    }
 };
 
 const getVariantGID = (variantId) =>

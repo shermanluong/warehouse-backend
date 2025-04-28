@@ -4,6 +4,9 @@ const Order = require('../models/order.model');
 const User  = require('../models/user.model');
 const Product = require('../models/product.model'); // Adjust the path
 const axios = require('axios');
+const { 
+  getLocate2uStopsService
+} = require('../services/locate2u.service');
 
 const assignLeastBusyPicker = async () => {
   const picker = await User.findOne({ role: 'picker', active: true })
@@ -14,8 +17,11 @@ const assignLeastBusyPicker = async () => {
 };
 
 const fetchAndStoreOrders = async (req, res) => {
-  const orders = await getOrders(); // Pull unfulfilled orders from Shopify
-
+  const { tripDate } = req.query;
+  console.log(tripDate);
+  const orders = await getOrders(tripDate); // Pull unfulfilled orders from Shopify
+  const stops = await getLocate2uStopsService(tripDate);
+  console.log(stops.length);
   for (const order of orders) {
     const customer = order.customer;
     const picker = await assignLeastBusyPicker();
