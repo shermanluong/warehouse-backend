@@ -3,13 +3,13 @@ const User = require('../models/user.model');
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
 const mongoose = require('mongoose');
-const { getLocate2uToken } = require('../services/locate2u.service');
+const { getLocate2uTokenService, getLocate2uTripsService, getLocate2uTripDetailService } = require('../services/locate2u.service');
 const { default: axios } = require('axios');
 
 const getToken = async (req, res) => {
   console.log("Requested locate2u token")
   try {
-    const token = await getLocate2uToken();
+    const token = await getLocate2uTokenService();
     res.json({ access_token: token });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -32,7 +32,7 @@ const getLocate2uOrders = async (req, res) => {
     return res.status(400).json({ error: 'Date range must not exceed 7 days' });
   }
 
-  const token = await getLocate2uToken();
+  const token = await getLocate2uTokenService();
 
   try {
     const response = await axios.get(`${process.env.LOCATE2U_API_BASE_URL}/orders/created`, {
@@ -52,7 +52,85 @@ const getLocate2uOrders = async (req, res) => {
   }
 };
 
+const getLocate2uStops = async (req, res) => {
+  const { from, pageNumber = 1, pageSize = 10 } = req.query;
+
+  if (!from) {
+    return res.status(400).json({ error: 'Missing "from" query parameter' });
+  }
+
+  // Validate the 'from' date
+  const fromDate = new Date(from);
+  console.log(fromDate);
+  if (isNaN(fromDate)) {
+    return res.status(400).json({ error: '"from" parameter is not a valid date' });
+  }
+
+  const token = await getLocate2uTokenService();
+
+  try {
+    const response = await axios.get(`${process.env.LOCATE2U_API_BASE_URL}/stops/getStopsFromTimestamp`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      params: {
+        From: from,               // "From" query parameter as date-time string
+        PageNumber: pageNumber,   // Optional "PageNumber" parameter, defaults to 1
+        PageSize: pageSize        // Optional "PageSize" parameter, defaults to 10
+      }
+    });
+
+    return res.json(response.data);
+  } catch (error) {
+    console.error('Failed to fetch stops:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Locate2u stops fetch failed' });
+  }
+};
+
+// Trying with a different date (today)
+const getLocate2uTrips = async (req, res) => {
+  const { tripDate } = req.params;
+
+  if (!tripDate) {
+    return res.status(400).json({ error: 'Missing "tripDate" query parameter' });
+  }
+
+  const date = new Date(tripDate);
+  if (isNaN(date)) {
+    return res.status(400).json({ error: '"tripDate" parameter is not a valid date' });
+  }
+
+  const token = await getLocate2uTokenService();
+
+  const stopDetials = [];
+
+  try {
+    const trips = await getLocate2uTripsService(tripDate, token);
+
+    // Use for...of to handle async await in the loop
+    for (const trip of trips) {
+      console.log(trip);
+      const tripDetail = await getLocate2uTripDetailService(trip.tripId, token);
+      tripDetail.stops.forEach(stop => {
+        stopDetials.push({
+          oderId: stop?.customFields?.orderid || null, 
+          tripId: tripDetail?.tripId, 
+          driverName: trip?.driverName,
+          stopNumber: stop?.order
+        })
+      });
+    }
+
+    return res.json(stopDetials);
+  } catch (error) {
+    console.error('Error fetching trip details:', error.message);
+    return res.status(500).json({ error: 'Failed to fetch trip details' });
+  }
+};
+
 module.exports = {
   getToken,
-  getLocate2uOrders
+  getLocate2uOrders,
+  getLocate2uStops,
+  getLocate2uTrips
 };

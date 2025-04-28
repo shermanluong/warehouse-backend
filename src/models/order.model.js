@@ -45,7 +45,7 @@ const photoSchema = new mongoose.Schema({
 const deliverySchema = new mongoose.Schema({
   driverName: String,
   routeNumber: String,
-  eta: Date
+  stopNumber: Number,
 }, { _id: false });
 
 const orderSchema = new Schema({

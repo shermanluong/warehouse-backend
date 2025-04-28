@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-getLocate2uToken = async () => {
+const getLocate2uTokenService = async () => {
     const params = new URLSearchParams();
     params.append('client_id', process.env.LOCATE2U_CLIENT_ID);
     params.append('client_secret', process.env.LOCATE2U_CLIENT_SECRET);
@@ -19,6 +19,53 @@ getLocate2uToken = async () => {
         console.error('Failed to fetch Locate2u token:', error.response?.data || error.message);
         throw new Error('Locate2u token request failed');
     }
-}
+} 
+  // Trying with a different date (today)
+const getLocate2uTripsService = async (tripDate, token) => {
+    if (!tripDate) {
+        return res.status(400).json({ error: 'Missing "tripDate" query parameter' });
+    }
 
-module.exports = { getLocate2uToken };
+    // Validate the 'tripDate' to ensure it's a valid date
+    const date = new Date(tripDate);
+    if (isNaN(date)) {
+        return res.status(400).json({ error: '"tripDate" parameter is not a valid date' });
+    }
+
+    try {
+        const response = await axios.get(`${process.env.LOCATE2U_API_BASE_URL}/team/trips/${tripDate}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept' : 'application/json'
+        }});
+
+        if ( response.status == 200 && response.data) {
+            const trips = response.data.map(trip => { return {tripId: trip.tripId, driverName : trip.assignedTeamMemberName}});
+            return trips;
+        } else {
+            console.error('Failed find tripId');
+            throw new Error('Failed find tripId');
+        }
+    } catch (error) {
+        console.error('Failed to fetch Locate2u trips:', error.response?.data || error.message);
+        throw new Error('Locate2u trips request failed');
+    }
+};
+
+const getLocate2uTripDetailService = async (tripId, token) => {
+    try {
+        const response = await axios.get(`${process.env.LOCATE2U_API_BASE_URL}/trips/id/${tripId}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept' : 'application/json'
+        }
+        });
+
+        return response.data;
+    } catch (error) {
+        console.error('Failed to fetch Locate2u trips:', error.response?.data || error.message);
+        throw new Error('Locate2u trips request failed');
+    }
+};
+
+module.exports = { getLocate2uTokenService, getLocate2uTripsService, getLocate2uTripDetailService};
