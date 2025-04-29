@@ -28,13 +28,17 @@ const fetchAndStoreOrders = async (req, res) => {
   let count = 0;
 
   for (const tripDetail of tripDetails) {
-    console.log("trip detail stop count", tripDetail.stops.length);
     for (const stop of tripDetail.stops) {
       const order = orders.find(o => o.order_number == stop?.customFields?.orderid);
       if (order) {
         const customer = order.customer;
         const picker = await assignLeastBusyPicker();
-
+        const delivery = {
+          driverName: tripDetail?.driverName,
+          driverMemberId: tripDetail?.teamMemberId,
+          tripId: tripDetail?.tripId,
+          stopNumber: stop?.order,
+        };
         const lineItems = order.line_items.map((item) => ({
           shopifyLineItemId: item.id,  
           productId: item.product_id,
@@ -60,7 +64,7 @@ const fetchAndStoreOrders = async (req, res) => {
               tags: order.tags,
               orderNote: order.note, // general order-level customer note
               pickerId: picker._id,
-              delivery: stop,
+              delivery: delivery,
               lineItems,
               customer: customer ? {
                 id: customer.id,
