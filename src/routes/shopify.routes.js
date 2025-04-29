@@ -9,5 +9,4 @@ const {
 router.get('/sync-orders', fetchAndStoreOrders);
 router.get('/sync-products', syncAllShopifyProducts);
 
-
 module.exports = router;

@@ -78,26 +78,20 @@ const getLocate2uStopsService = async (tripDate, token = null) => {
     if (token == null) {
         token = await getLocate2uTokenService();
     }
-    const stopDetails = [];
+    const tripDetails = [];
     try {
       const trips = await getLocate2uTripsService(tripDate, token);
   
       // Use for...of to handle async await in the loop
       for (const trip of trips) {
         const tripDetail = await getLocate2uTripDetailService(trip.tripId, token);
-        tripDetail.stops.forEach(stop => {
-            stopDetails.push({
-                orderId: stop?.customFields?.orderid || null, 
-                tripId: tripDetail?.tripId, 
-                tripDate: stop?.tripDate,
-                driverName: trip?.driverName,
-                driverMemberId: trip?.teamMemberId,
-                stopNumber: stop?.order
-            })
+        tripDetails.push({
+            ...trip,
+            stops: tripDetail?.stops || []
         });
       }
   
-      return stopDetails;
+      return tripDetails;
     } catch (error) {
       console.error('Error fetching stops:', error.message);
       throw new Error('Failed to fetch stops');

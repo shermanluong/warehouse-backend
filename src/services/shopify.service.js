@@ -43,7 +43,7 @@ const getOrders = async (tags = []) => {
 
     // Convert tags array to a comma-separated string
     const tagsQuery = tags.join(',');
-    console.log(tagsQuery);
+    
     try {
         const res = await axios.get(url, {
             headers: {

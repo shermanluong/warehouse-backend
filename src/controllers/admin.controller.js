@@ -101,8 +101,7 @@ const getOrders = async (req, res) => {
     const selectedDate = req.query.date || '';
     const pickerName = req.query.picker || '';
     const packerName = req.query.packer || '';
-    console.log(selectedDate);
-    console.log(formatDate(selectedDate));
+    
     const textSearchQuery = {
       $and: [
         { 
