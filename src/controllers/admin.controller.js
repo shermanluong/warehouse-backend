@@ -151,38 +151,6 @@ const getOrders = async (req, res) => {
       },
       { $unwind: { path: '$packer', preserveNullAndEmptyArrays: true } },
 
-      // Unwind lineItems
-      { $unwind: '$lineItems' },
-
-      // Lookup product info
-      {
-        $lookup: {
-          from: 'products',
-          let: {
-            pid: '$lineItems.productId',
-            vid: '$lineItems.variantId'
-          },
-          pipeline: [
-            { $match: { $expr: { $eq: ['$shopifyProductId', '$$pid'] } } },
-            {
-              $addFields: {
-                variant: {
-                  $first: {
-                    $filter: {
-                      input: '$variants',
-                      as: 'v',
-                      cond: { $eq: ['$$v.shopifyVariantId', '$$vid'] }
-                    }
-                  }
-                }
-              }
-            }
-          ],
-          as: 'productInfo'
-        }
-      },
-      { $unwind: { path: '$productInfo', preserveNullAndEmptyArrays: true } },
-
       // Regroup orders
       {
         $group: {
@@ -198,6 +166,7 @@ const getOrders = async (req, res) => {
           delivery: { $first: '$delivery' },
           adminNote: { $first: '$adminNote' },
           orderNote: { $first: '$orderNote' },
+          lineItemCount: {$sum: {$size : '$lineItems'}},
         }
       },
 
@@ -232,7 +201,6 @@ const getOrders = async (req, res) => {
     res.json({
       orders: result.data.map(order => ({
         ...order,
-        lineItemCount: order.lineItems?.length || 0,
         picker: { name: order.picker?.realName },
         packer: { name: order.packer?.realName }
       })),
