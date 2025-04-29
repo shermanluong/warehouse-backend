@@ -195,6 +195,7 @@ const getOrders = async (req, res) => {
           customer: { $first: '$customer' },
           picker: { $first: '$picker' },
           packer: { $first: '$packer' },
+          delivery: { $first: '$delivery' },
           adminNote: { $first: '$adminNote' },
           orderNote: { $first: '$orderNote' },
         }

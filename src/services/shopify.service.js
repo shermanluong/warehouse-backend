@@ -50,12 +50,11 @@ const getOrders = async (tags = []) => {
                 'X-Shopify-Access-Token': token
             },
             params: {
-                fulfillment_status: 'unfulfilled', // Only fetch unfulfilled orders
+                status: 'any',
                 limit: 250,
                 ...(tagsQuery && { 'tag': tagsQuery })
             }
         });
-
         return res.data.orders;
     } catch (error) {
         console.error('Error fetching orders from Shopify:', error);
