@@ -3,6 +3,7 @@ const User = require('../models/user.model');
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
 const mongoose = require('mongoose');
+const { formatDate } = require('../utils/formateDate');
 
 // Get logs of all orders (e.g. substitutions, refunds, etc.)
 const getLogs = async (req, res) => {
@@ -97,20 +98,31 @@ const getOrders = async (req, res) => {
     const search = req.query.search || '';
     const sortField = req.query.sort || 'createdAt';
     const sortOrder = req.query.order === 'desc' ? -1 : 1;
-
+    const selectedDate = req.query.date || '';
     const pickerName = req.query.picker || '';
     const packerName = req.query.packer || '';
-
+    console.log(selectedDate);
+    console.log(formatDate(selectedDate));
     const textSearchQuery = {
-      $or: [
-        { shopifyOrderId: { $regex: search, $options: 'i' } },
-        {
-          $expr: {
-            $regexMatch: {
-              input: { $concat: ['$customer.first_name', ' ', '$customer.last_name'] },
-              regex: search,
-              options: 'i'
+      $and: [
+        { 
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            {
+              $expr: {
+                $regexMatch: {
+                  input: { $concat: ['$customer.first_name', ' ', '$customer.last_name'] },
+                  regex: search,
+                  options: 'i'
+                }
+              }
             }
+          ]
+        },
+        {
+          tags: {
+            $regex: formatDate(selectedDate), // Assuming selectedDate is formatted properly for comparison
+            $options: 'i'
           }
         }
       ]
@@ -167,6 +179,7 @@ const getOrders = async (req, res) => {
           adminNote: { $first: '$adminNote' },
           orderNote: { $first: '$orderNote' },
           lineItemCount: {$sum: {$size : '$lineItems'}},
+          tags: {$first: '$tags'},
         }
       },
 
