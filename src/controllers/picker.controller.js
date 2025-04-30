@@ -17,7 +17,6 @@ const getPickerOrders = async (req, res) => {
 
     const orders = await Order.aggregate([
       { $match: match },
-      { $sort: { createdAt: -1 } },
       {
         $project: {
           shopifyOrderId: 1,
@@ -26,6 +25,7 @@ const getPickerOrders = async (req, res) => {
           status: 1,
           pickerId: 1,
           packerId: 1,
+          delivery: 1,
           adminNote: { $ifNull: ["$adminNote", null] }, // 👈 force include null if missing
           orderNote: 1,
           createdAt: 1,
@@ -55,7 +55,13 @@ const getPickerOrders = async (req, res) => {
           },
           lineItemCount: { $size: "$lineItems" } // ✅ Line item count added here
         }
-      }
+      },
+      {
+        $sort: {
+          'delivery.tripId': 1, // Sort tripId in ascending order (increase)
+          'delivery.stopNumber': -1 // Sort stopNumber in descending order (decrease)
+        }
+      },
     ]);
 
     res.json(orders);
