@@ -44,7 +44,9 @@ const getLocate2uTripsService = async (tripDate, token) => {
                 return {
                     tripId: trip.tripId, 
                     teamMemberId: trip.assignedTeamMemberId,
-                    driverName : trip.assignedTeamMemberName
+                    driverName : trip.assignedTeamMemberName,
+                    startTime: trip.startTime,
+                    endTime: trip.endTime
                 }
             });
             return trips;

@@ -47,7 +47,9 @@ const deliverySchema = new mongoose.Schema({
   tripId: String,
   tripDate: String,
   stopNumber: Number,
-  driverMemberId: String
+  driverMemberId: String,
+  startTime: String,
+  endTime: String,
 }, { _id: false });
 
 const orderSchema = new Schema({

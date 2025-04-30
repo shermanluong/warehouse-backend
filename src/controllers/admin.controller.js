@@ -138,8 +138,6 @@ const getOrders = async (req, res) => {
     }
 
     const orders = await Order.aggregate([
-      { $sort: { [sortField]: sortOrder } },
-
       // Lookup picker
       {
         $lookup: {
@@ -192,7 +190,12 @@ const getOrders = async (req, res) => {
       {
         $facet: {
           data: [
-            { $sort: { [sortField]: sortOrder } },
+            {
+              $sort: {
+                'delivery.tripId': 1, // Sort tripId in ascending order (increase)
+                'delivery.stopNumber': -1 // Sort stopNumber in descending order (decrease)
+              }
+            },
             { $skip: (page - 1) * limit },
             { $limit: limit }
           ],

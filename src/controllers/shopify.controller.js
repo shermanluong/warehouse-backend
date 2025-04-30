@@ -38,6 +38,8 @@ const fetchAndStoreOrders = async (req, res) => {
           driverMemberId: tripDetail?.teamMemberId,
           tripId: tripDetail?.tripId,
           stopNumber: stop?.order,
+          startTime: tripDetail?.startTime,
+          endTime: tripDetail?.endTime,
         };
         const lineItems = order.line_items.map((item) => ({
           shopifyLineItemId: item.id,  
