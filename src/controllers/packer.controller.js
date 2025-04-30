@@ -196,12 +196,67 @@ const getPackingOrder = async (req, res) => {
           lineItems: { $push: "$lineItems" }
         }
       },
+      // Sort by SKU
+      {
+        $addFields: {
+          lineItems: {
+            $map: {
+              input: "$lineItems",
+              as: "item",
+              in: {
+                $mergeObjects: [
+                  "$$item",
+                  {
+                    skuSortKey: {
+                      $let: {
+                        vars: {
+                          firstPart: { $arrayElemAt: [{ $split: ["$$item.variantInfo.sku", "-"] }, 0] },
+                          secondPart: { $arrayElemAt: [{ $split: ["$$item.variantInfo.sku", "-"] }, 1] },
+                          thirdPart: { $arrayElemAt: [{ $split: ["$$item.variantInfo.sku", "-"] }, 2] }
+                        },
+                        in: {
+                          firstPartValue: {
+                            $cond: {
+                              if: { $eq: ["$$firstPart", ""] },
+                              then: -1, // Empty first part should come first
+                              else: { $toInt: { $ifNull: ["$$firstPart", 0] } }
+                            }
+                          },
+                          secondPartValue: {
+                            $cond: {
+                              if: { $eq: ["$$secondPart", ""] },
+                              then: "", // Empty second part should come last
+                              else: "$$secondPart" // Sort as string
+                            }
+                          },
+                          thirdPartValue: {
+                            $cond: {
+                              if: { $eq: ["$$thirdPart", ""] },
+                              then: -1, // Empty third part should come first
+                              else: { $toInt: "$$thirdPart" } // Sort numerically
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      
       {
         $addFields: {
           lineItems: {
             $sortArray: {
               input: "$lineItems",
-              sortBy: { "variantInfo.sku": 1 }
+              sortBy: {
+                "skuSortKey.firstPartValue": 1,  // First part ascending (numeric)
+                "skuSortKey.secondPartValue": 1, // Second part lexicographical (string)
+                "skuSortKey.thirdPartValue": 1   // Third part numeric ascending
+              }
             }
           }
         }
