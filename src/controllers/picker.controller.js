@@ -384,7 +384,7 @@ const pickMinusItem =  async (req, res) => {
   const totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity;
 
   if (totalPickedQuantity > 0) {
-    item.pickedStatus.verifiedQuantity -= 1;
+    pickedStatus.verifiedQuantity -= 1;
   }
 
   if (totalPickedQuantity < item.quantity) {
@@ -423,6 +423,35 @@ const undoItem = async (req, res) => {
 
 //PATCH /api/picker/order/:id/pick-flag
 const pickFlagItem = async (req, res) => {
+  const { id } = req.params;
+  const { shopifyLineItemId, reason, quantity} = req.body;
+
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  const pickedStatus = item.pickedStatus;
+  const totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity + quantity;
+
+  if ( reason === 'Out Of Stock' ) {
+    pickedStatus.outOfStockQuantity += totalPickedQuantity > item.quantity ? (quantity - (totalPickedQuantity - item.quantity)) : quantity;
+  } else if (reason === 'Damaged') {
+    pickedStatus.damagedQuantity += totalPickedQuantity > item.quantity ? (quantity - (totalPickedQuantity - item.quantity)) : quantity;
+  } else {
+    return res.status(404).json({message: 'Unreasonable'})
+  }
+
+  if ( totalPickedQuantity >= item.quantity ) item.picked = true;
+  else item.picked = false;
+
+  await order.save();
+  res.json({ message: 'Flag updated', item });
+};
+
+//PATCH /api/picker/order/:id/pick-flag
+const pickSubstituteItem = async (req, res) => {
   const { id } = req.params;
   const { productId, variantId, reason, substituteProductId, substituteVariantId } = req.body;
   console.log(`variant id ${variantId}`);
