@@ -203,7 +203,6 @@ const getPickingOrder = async (req, res) => {
           adminNote: { $first: "$adminNote" },
           status: { $first: "$status" },
           pickerId: { $first: "$pickerId" },
-          packerId: { $first: "$packerId" },
           createdAt: { $first: "$createdAt" },
           customer: { $first: "$customer" },
           delivery: { $first: "$delivery" },
@@ -347,69 +346,70 @@ const pickItem =  async (req, res) => {
 //PATCH /api/picker/order/:id/pick-plus
 const pickPlusItem =  async (req, res) => {
   const { id } = req.params;
-  const { productId } = req.body;
+  const { shopifyLineItemId } = req.body;
 
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
 
-  const item = order.lineItems.find(i => i.productId === productId);
+  const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
-  if (item.pickedQuantity < item.quantity) {
-    item.pickedQuantity += 1;
+  const pickedStatus = item.pickedStatus;
+  const totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity;
+
+  if (totalPickedQuantity < item.quantity) {
+    item.pickedStatus.verifiedQuantity += 1;
   }
 
-  if (item.pickedQuantity >= item.quantity) {
+  if (item.totalPickedQuantity >= item.quantity) {
     item.picked = true;
   }
 
-  if (order.status == "new" ) order.status = "picking";
   await order.save();
-
   res.json({ success: true, item });
 }
 
 //PATCH /api/picker/order/:id/pick-minus
 const pickMinusItem =  async (req, res) => {
   const { id } = req.params;
-  const { productId } = req.body;
+  const { shopifyLineItemId } = req.body;
 
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
 
-  const item = order.lineItems.find(i => i.productId === productId);
+  const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
-  if (item.pickedQuantity > 0) {
-    item.pickedQuantity -= 1;
+  const pickedStatus = item.pickedStatus;
+  const totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity;
+
+  if (totalPickedQuantity > 0) {
+    item.pickedStatus.verifiedQuantity -= 1;
   }
 
-  if (item.pickedQuantity < item.quantity) {
+  if (totalPickedQuantity < item.quantity) {
     item.picked = false;
   }
 
-  if (order.status == "new" ) order.status = "picking";
   await order.save();
-
   res.json({ success: true, item });
 }
 
 //PATCH /api/picker/order/:id/undo-item
 const undoItem = async (req, res) => {
   const { id } = req.params;
-  const { productId, variantId } = req.body;
+  const { shopifyLineItemId } = req.body;
 
   try {
     const order = await Order.findById(id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
     const item = order.lineItems.find(
-      i => i.productId === productId && i.variantId === variantId
-    );
+      i => i.shopifyLineItemId === shopifyLineItemId && i.variantId);
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
     item.picked = false;
-    item.pickedQuantity = 0;
+    item.pickedStatus = {...item.pickedStatus, verifiedQuantity: 0, damagedQuantity: 0, outOfStockQuantity: 0};
     item.flags = [];
     item.substitution = null;
 

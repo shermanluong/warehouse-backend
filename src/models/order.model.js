@@ -10,13 +10,17 @@ const substitutionSchema = new mongoose.Schema({
   substituteVariantId: String
 }, { _id: false });
 
+const pickingStatusSchema = new mongoose.Schema({
+  verifiedQuantity: { type: Number, default: 0 },
+  damagedQuantity: { type: Number, default: 0 },
+  outOfStockQuantity: { type: Number, default: 0},
+}, { _id: false});
+
 const lineItemSchema = new mongoose.Schema({
   shopifyLineItemId: String, // <-- Add this
   productId: String,
   variantId: String,
   quantity: Number,
-  pickedQuantity: { type: Number, default: 0 },
-  packedQuantity: { type: Number, default: 0 },
   picked: { type: Boolean, default: false },
   packed: { type: Boolean, default: false },
   substitution: substitutionSchema,
@@ -24,6 +28,7 @@ const lineItemSchema = new mongoose.Schema({
     type: [String],
     enum: ['Out Of Stock', 'Damaged', 'Refunded', 'substitution requested'],
   },
+  pickedStatus: pickingStatusSchema,
   adminNote: String,
   customerNote: String
 }, { _id: false });
