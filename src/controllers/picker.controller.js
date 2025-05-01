@@ -355,13 +355,14 @@ const pickPlusItem =  async (req, res) => {
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
   const pickedStatus = item.pickedStatus;
-  const totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity;
+  let totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity;
 
   if (totalPickedQuantity < item.quantity) {
+    totalPickedQuantity += 1;
     item.pickedStatus.verifiedQuantity += 1;
   }
 
-  if (item.totalPickedQuantity >= item.quantity) {
+  if (totalPickedQuantity >= item.quantity) {
     item.picked = true;
   }
 
@@ -381,9 +382,10 @@ const pickMinusItem =  async (req, res) => {
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
   const pickedStatus = item.pickedStatus;
-  const totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity;
+  let totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity;
 
   if (totalPickedQuantity > 0) {
+    totalPickedQuantity -= 1;
     pickedStatus.verifiedQuantity -= 1;
   }
 
