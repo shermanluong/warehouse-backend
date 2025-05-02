@@ -35,7 +35,8 @@ const lineItemSchema = new mongoose.Schema({
   pickedStatus: pickingStatusSchema,
   packedStatus: pickingStatusSchema,
   adminNote: String,
-  customerNote: String
+  customerNote: String,
+  refund: {type: Boolean, default: false}
 }, { _id: false });
 
 const logSchema = new mongoose.Schema({

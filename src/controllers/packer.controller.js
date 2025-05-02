@@ -193,7 +193,7 @@ const getPackingOrder = async (req, res) => {
           customer: { $first: "$customer" },
           delivery: { $first: "$delivery" },
           photos: { $first: "$photos" },
-          lineItems: { $push: "$lineItems" }
+          lineItems: { $push: "$lineItems" },
         }
       },
       // Sort by SKU
@@ -332,19 +332,17 @@ const packItem =  async (req, res) => {
 //PATCH /api/packer/order/:id/undo-item
 const undoItem = async (req, res) => {
   const { id } = req.params;
-  const { productId, variantId } = req.body;
+  const { shopifyLineItemId } = req.body;
 
   try {
     const order = await Order.findById(id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    const item = order.lineItems.find(
-      i => i.productId === productId && i.variantId === variantId
-    );
+    const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
     item.packed = false;
-    item.packedQuantity = 0;
+    item.packedStatus = {...item.packedStatus, verified: {quantity: 0}, damaged: {quantity: 0}, outOfStock: {quantity: 0}};
 
     await order.save();
     res.json({ message: 'Item successfully reset' });
@@ -405,7 +403,7 @@ const confirmSubItem = async (req, res) => {
 
 const refundLineItem = async (req, res) => {
   try {
-    const {id, shopifyOrderId, shopifyLineItemId, quantity } = req.body;
+    const { id, shopifyOrderId, shopifyLineItemId, quantity } = req.body;
     console.log(`id ${id}`);
     console.log(`shopifyOrderId ${shopifyOrderId}`);
     console.log(`shopifyLineItemId ${shopifyLineItemId}`);
@@ -415,7 +413,7 @@ const refundLineItem = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    //const refundResult = await refundItem(shopifyOrderId, shopifyLineItemId, quantity);
+    // const refundResult = await refundItem(shopifyOrderId, shopifyLineItemId, quantity);
     const refundResult = {};
 
     const order = await Order.findById(id);
@@ -424,28 +422,30 @@ const refundLineItem = async (req, res) => {
     const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
-    if (!item.flags.includes("Refunded")) {
-      const title = await getVariantDisplayTitle(item.productId, item.variantId);
-    
-      await createNotification({
-        type: 'REFUND',
-        message: `${title} was refunded in order ${order.name}.`,
-        userRoles: ['admin'],
-        relatedOrderId: order._id,
-        relatedProductId: item.productId,
-        relatedVariantId: item.variantId
-      });
-    
-      item.flags = [...item.flags, "Refunded"]; // Safer way to push flag
-    }
+    const title = await getVariantDisplayTitle(item.productId, item.variantId);
+
+    await createNotification({
+      type: 'REFUND',
+      message: `${title} was refunded in order ${order.name}.`,
+      userRoles: ['admin'],
+      relatedOrderId: order._id,
+      relatedProductId: item.productId,
+      relatedVariantId: item.variantId
+    });
+
+    // Update refund field
+    item.packed = true;
+    item.refund = true;
+
+    // Save the order with the updated line item
     await order.save();
 
     res.json({
       message: "Refund processed successfully",
-      data: refundResult,
+      data: order, // Return the updated order
     });
   } catch (error) {
-    console.log(error);
+    console.log('Error processing refund:', error);
     res.status(500).json({ message: "Error processing refund", error: error.message });
   }
 };
@@ -520,11 +520,13 @@ const packPlusItem =  async (req, res) => {
   const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
-  if (item.packedQuantity < item.quantity) {
-    item.packedQuantity += 1;
+  if (item.packedStatus.verified.quantity < item.pickedStatus.verified.quantity) {
+    item.packedStatus.verified.quantity += 1;
   }
 
-  if (item.packedQuantity >= item.quantity) {
+  const packedStatus = item.packedStatus;
+  const totalPackedQuantity = packedStatus.verified.quantity + packedStatus.damaged.quantity + packedStatus.outOfStock.quantity;
+  if (totalPackedQuantity >= item.quantity) {
     item.packed = true;
   }
 
@@ -537,23 +539,25 @@ const packPlusItem =  async (req, res) => {
 //PATCH /api/packer/order/:id/pack-minus
 const packMinusItem =  async (req, res) => {
   const { id } = req.params;
-  const { productId } = req.body;
+  const { shopifyLineItemId } = req.body;
 
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
 
-  const item = order.lineItems.find(i => i.productId === productId);
+  const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
-  if (item.packedQuantity > 0) {
-    item.packedQuantity -= 1;
+  if (item.packedStatus.verified.quantity > 0) {
+    item.packedStatus.verified.quantity  -= 1;
   }
 
-  if (item.packedQuantity < item.quantity) {
+  const packedStatus = item.packedStatus;
+  const totalPackedQuantity = packedStatus.verified.quantity + packedStatus.damaged.quantity + packedStatus.outOfStock.quantity;
+
+  if (totalPackedQuantity < item.quantity) {
     item.packed = false;
   }
 
-  if (order.status == "picked" ) order.status = "packing";
   await order.save();
 
   res.json({ success: true, item });
