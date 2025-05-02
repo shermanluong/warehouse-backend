@@ -355,11 +355,11 @@ const pickPlusItem =  async (req, res) => {
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
   const pickedStatus = item.pickedStatus;
-  let totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity;
+  let totalPickedQuantity = pickedStatus.verified.quantity + pickedStatus.damaged.quantity + pickedStatus.outOfStock.quantity;
 
   if (totalPickedQuantity < item.quantity) {
     totalPickedQuantity += 1;
-    item.pickedStatus.verifiedQuantity += 1;
+    item.pickedStatus.verified.quantity += 1;
   }
 
   if (totalPickedQuantity >= item.quantity) {
@@ -382,11 +382,11 @@ const pickMinusItem =  async (req, res) => {
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
   const pickedStatus = item.pickedStatus;
-  let totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity;
+  let totalPickedQuantity = pickedStatus.verified.quantity + pickedStatus.damaged.quantity + pickedStatus.outOfStock.quantity;
 
   if (totalPickedQuantity > 0) {
     totalPickedQuantity -= 1;
-    pickedStatus.verifiedQuantity -= 1;
+    pickedStatus.verified.quantity -= 1;
   }
 
   if (totalPickedQuantity < item.quantity) {
@@ -411,9 +411,7 @@ const undoItem = async (req, res) => {
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
     item.picked = false;
-    item.pickedStatus = {...item.pickedStatus, verifiedQuantity: 0, damagedQuantity: 0, outOfStockQuantity: 0};
-    item.flags = [];
-    item.substitution = null;
+    item.pickedStatus = {...item.pickedStatus, verified: {quantity: 0}, damaged: {quantity: 0}, outOfStock: {quantity: 0}};
 
     await order.save();
     res.json({ message: 'Item successfully reset' });
@@ -435,12 +433,12 @@ const pickFlagItem = async (req, res) => {
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
   const pickedStatus = item.pickedStatus;
-  const totalPickedQuantity = pickedStatus.verifiedQuantity + pickedStatus.damagedQuantity + pickedStatus.outOfStockQuantity + quantity;
+  const totalPickedQuantity = pickedStatus.verified.quantity + pickedStatus.damaged.quantity + pickedStatus.outOfStock.quantity + quantity;
 
   if ( reason === 'Out Of Stock' ) {
-    pickedStatus.outOfStockQuantity += totalPickedQuantity > item.quantity ? (quantity - (totalPickedQuantity - item.quantity)) : quantity;
+    pickedStatus.outOfStock.quantity += totalPickedQuantity > item.quantity ? (quantity - (totalPickedQuantity - item.quantity)) : quantity;
   } else if (reason === 'Damaged') {
-    pickedStatus.damagedQuantity += totalPickedQuantity > item.quantity ? (quantity - (totalPickedQuantity - item.quantity)) : quantity;
+    pickedStatus.damaged.quantity += totalPickedQuantity > item.quantity ? (quantity - (totalPickedQuantity - item.quantity)) : quantity;
   } else {
     return res.status(404).json({message: 'Unreasonable'})
   }

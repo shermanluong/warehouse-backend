@@ -450,31 +450,6 @@ const refundLineItem = async (req, res) => {
   }
 };
 
-//PATCH /api/packer/order/:id/pack-plus
-const packPlusItem =  async (req, res) => {
-  const { id } = req.params;
-  const { productId } = req.body;
-
-  const order = await Order.findById(id);
-  if (!order) return res.status(404).json({ message: 'Order not found' });
-
-  const item = order.lineItems.find(i => i.productId === productId);
-  if (!item) return res.status(404).json({ message: 'Item not found' });
-
-  if (item.packedQuantity < item.quantity) {
-    item.packedQuantity += 1;
-  }
-
-  if (item.packedQuantity >= item.quantity) {
-    item.packed = true;
-  }
-
-  if (order.status == "picked" ) order.status = "packing";
-  await order.save();
-
-  res.json({ success: true, item });
-}
-
 const savePhoto = async (req, res) => {
   try {
     const { id } = req.params;
@@ -532,6 +507,31 @@ const deletePhoto = async (req, res) => {
     console.error('Delete Photo Error:', err.response?.data || err.message);
     res.status(500).json({ message: 'Error deleting photo' });
   }
+}
+
+//PATCH /api/packer/order/:id/pack-plus
+const packPlusItem =  async (req, res) => {
+  const { id } = req.params;
+  const { shopifyLineItemId } = req.body;
+
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+
+  const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
+  if (!item) return res.status(404).json({ message: 'Item not found' });
+
+  if (item.packedQuantity < item.quantity) {
+    item.packedQuantity += 1;
+  }
+
+  if (item.packedQuantity >= item.quantity) {
+    item.packed = true;
+  }
+
+  if (order.status == "picked" ) order.status = "packing";
+  await order.save();
+
+  res.json({ success: true, item });
 }
 
 //PATCH /api/packer/order/:id/pack-minus

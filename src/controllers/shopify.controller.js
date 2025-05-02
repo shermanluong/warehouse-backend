@@ -48,7 +48,16 @@ const fetchAndStoreOrders = async (req, res) => {
           quantity: item.quantity,
           picked: false,
           packed: false,
-          pickedStatus: {verifiedQuantity: 0, damagedQuantity: 0, outOfStockQuantity: 0},
+          pickedStatus: {
+            verified: {quantity : 0}, 
+            damagedQuantity: {quantity : 0}, 
+            outOfStockQuantity: {quantity: 0}
+          },
+          packedStatus: {
+            verified: {quantity : 0}, 
+            damagedQuantity: {quantity : 0}, 
+            outOfStockQuantity: {quantity: 0}
+          },
           substitution: null,
           flags: [],
           adminNote: '', // You can populate this manually or from your product DB

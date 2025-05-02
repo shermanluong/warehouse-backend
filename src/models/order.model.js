@@ -2,19 +2,28 @@ const mongoose = require('mongoose');
 const { Schema, Types } = mongoose;
 const User = require('./user.model');
 
-const substitutionSchema = new mongoose.Schema({
-  used: Boolean,
-  originalProductId: String,
-  originalVariantId: String,
-  substituteProductId: String,
-  substituteVariantId: String
-}, { _id: false });
-
-const pickingStatusSchema = new mongoose.Schema({
-  verifiedQuantity: { type: Number, default: 0 },
-  damagedQuantity: { type: Number, default: 0 },
-  outOfStockQuantity: { type: Number, default: 0},
-}, { _id: false});
+const pickingStatusSchema = new mongoose.Schema(
+  {
+    verified: {
+      quantity: { type: Number, default: 0 },
+    },
+    damaged: {
+      quantity: { type: Number, default: 0 },
+      subbed: {
+        productId: { type: String, required: false },
+        variantId: { type: String, required: false },
+      },
+    },
+    outOfStock: {  // Renamed to `outOfStock` for clarity
+      quantity: { type: Number, default: 0 },
+      subbed: {
+        productId: { type: String, required: false },
+        variantId: { type: String, required: false },
+      },
+    },
+  },
+  { _id: false } // This disables the creation of an _id field in subdocuments
+);
 
 const lineItemSchema = new mongoose.Schema({
   shopifyLineItemId: String, // <-- Add this
@@ -23,12 +32,8 @@ const lineItemSchema = new mongoose.Schema({
   quantity: Number,
   picked: { type: Boolean, default: false },
   packed: { type: Boolean, default: false },
-  substitution: substitutionSchema,
-  flags: {
-    type: [String],
-    enum: ['Out Of Stock', 'Damaged', 'Refunded', 'substitution requested'],
-  },
   pickedStatus: pickingStatusSchema,
+  packedStatus: pickingStatusSchema,
   adminNote: String,
   customerNote: String
 }, { _id: false });
