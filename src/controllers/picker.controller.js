@@ -528,7 +528,7 @@ const scanBarcode = async (req, res) => {
 
 const isPickingComplete = (lineItems) => {
   return lineItems.every(item => 
-    item.picked || (item.flags && item.flags.length > 0)
+    item.picked 
   );
 };
 

@@ -12,7 +12,7 @@ const { getPickedOrders,
         packMinusItem,
         savePhoto,
         deletePhoto,
-        finalisePack 
+        completePacking 
 } = require('../controllers/packer.controller');
 const router = express.Router();
 
@@ -28,6 +28,6 @@ router.patch('/order/:id/save-photo', auth(['packer']), savePhoto);
 router.delete('/order/:id/delete-photo', auth(['packer']), deletePhoto);
 router.post('/refund-item', auth(['packer']), refundLineItem);
 router.post('/startPacking/:orderId', auth(['packer']), startPacking);
-router.post('/finalise', auth(['packer']), finalisePack);
+router.post('/order/:id/complete-packing', auth(['packer']), completePacking);
 
 module.exports = router;

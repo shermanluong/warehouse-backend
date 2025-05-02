@@ -583,36 +583,29 @@ const startPacking = async (req, res) => {
   }
 };
 
-// Finalize packing (updates order status, adds photo, logs, etc.)
-const finalisePack = async (req, res) => {
-  try {
-    const { orderId, photoUrl, packerId, logs = [] } = req.body;
+const isPackingComplete = (lineItems) => {
+  return lineItems.every(item => 
+    item.picked 
+  );
+};
 
-    const order = await Order.findOneAndUpdate(
-      { shopifyOrderId: orderId },
-      {
-        $set: {
-          status: 'packed',
-          packerId,
-          photoUrl,
-          updatedAt: new Date()
-        },
-        $push: {
-          logs: { $each: logs }
-        }
-      },
-      { new: true }
-    );
+// POST /api/picker/order/:id/complete-picking
+const completePacking = async (req, res) => {
+  const { id } = req.params;
+  const { boxCount } = req.body;
+  
+  const order = await Order.findById(id);
+  if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Optionally:
-    // await locate2UService.syncOrder(order);
-    // await slackNotifier.sendPackedAlert(order);
-
-    res.json({ message: 'Order packed successfully', order });
-  } catch (err) {
-    console.error('Error finalizing pack:', err);
-    res.status(500).json({ error: 'Failed to finalize pack' });
+  if (!isPackingComplete(order.lineItems)) {
+    return res.status(400).json({ message: 'All items must be packed to complete packing.' });
   }
+
+  order.status = 'packed';
+  order.boxCount = boxCount;
+  await order.save();
+
+  res.json({ success: true });
 };
 
 module.exports = {
@@ -628,5 +621,5 @@ module.exports = {
   startPacking,
   savePhoto,
   deletePhoto,
-  finalisePack,
+  completePacking,
 };
