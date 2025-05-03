@@ -412,7 +412,7 @@ const cancelSubItem = async (req, res) => {
 
     item.pickedStatus.damaged.subbed = null;
     item.pickedStatus.outOfStock.subbed = null;
-    
+
     item.subbed = false;
 
     await order.save();
@@ -448,10 +448,6 @@ const confirmSubItem = async (req, res) => {
 const refundLineItem = async (req, res) => {
   try {
     const { id, shopifyOrderId, shopifyLineItemId, quantity } = req.body;
-    console.log(`id ${id}`);
-    console.log(`shopifyOrderId ${shopifyOrderId}`);
-    console.log(`shopifyLineItemId ${shopifyLineItemId}`);
-    console.log(`quantity ${quantity}`);
 
     if (!shopifyOrderId || !shopifyLineItemId || !quantity) {
       return res.status(400).json({ message: "Missing required fields" });
