@@ -97,7 +97,13 @@ const getPackingOrder = async (req, res) => {
           as: "productInfo"
         }
       },
-      { $unwind: "$productInfo" },
+      { 
+        $unwind: {
+          path: "$productInfo",
+          preserveNullAndEmptyArrays: true 
+        }
+      },
+
       {
         $addFields: {
           "lineItems.productTitle": "$productInfo.title",
@@ -118,66 +124,104 @@ const getPackingOrder = async (req, res) => {
           }
         }
       },
-      // Substitution product lookup
+      
+      // Precompute the field to use for lookup (outOfStock or damaged)
+      {
+        $addFields: {
+          substitutionProductId: {
+            $ifNull: [
+              "$lineItems.pickedStatus.outOfStock.subbed.productId", 
+              "$lineItems.pickedStatus.damaged.subbed.productId"
+            ]
+          }
+        }
+      },
+
+      // Lookup substitute product (using the precomputed substitutionProductId)
       {
         $lookup: {
           from: "products",
-          localField: "lineItems.substitution.substituteProductId",
+          localField: "substitutionProductId", // Use the precomputed field
           foreignField: "shopifyProductId",
           as: "subProduct"
         }
       },
-      {
-        $unwind: {
-          path: "$subProduct",
-          preserveNullAndEmptyArrays: true
-        }
-      },
+
       {
         $addFields: {
-          "lineItems.substitution.variantInfo": {
+          "lineItems.substitution": {
             $let: {
               vars: {
-                variant: {
+                matchedVariant: {
                   $arrayElemAt: [
                     {
                       $filter: {
-                        input: "$subProduct.variants",
+                        input: {
+                          $ifNull: [
+                            { $arrayElemAt: ["$subProduct.variants", 0] },
+                            []
+                          ]
+                        },
                         as: "variant",
                         cond: {
-                          $eq: ["$$variant.shopifyVariantId", "$lineItems.substitution.substituteVariantId"]
+                          $eq: [
+                            "$$variant.shopifyVariantId",
+                            {
+                              $ifNull: [
+                                "$lineItems.pickedStatus.outOfStock.subbed.variantId",
+                                "$lineItems.pickedStatus.damaged.subbed.variantId"
+                              ]
+                            }
+                          ]
                         }
                       },
                     },
-                    0,
-                  ]
-                }
-              },
-              in: {
-                shopifyVariantId: "$$variant.shopifyVariantId",
-                title: {
-                  $cond: [
-                    { $eq: ["$$variant.title", "Default Title"] },
-                    "$subProduct.title",
-                    "$$variant.title"
+                    0
                   ]
                 },
-                sku: "$$variant.sku",
-                barcode: "$$variant.barcode",
-                price: "$$variant.price",
-                inventory_quantity: "$$variant.inventory_quantity",
-                image: {
-                  $cond: [
-                    { $eq: ["$$variant.image", ""] },
-                    "$subProduct.image",
-                    "$$variant.image"
-                  ]
-                }
+                productTitle: { $arrayElemAt: ["$subProduct.title", 0] },
+                productImage: { $arrayElemAt: ["$subProduct.image", 0] }
+              },
+              in: {
+                $mergeObjects: [
+                  "$$matchedVariant",
+                  {
+                    title: {
+                      $cond: [
+                        { $eq: ["$$matchedVariant.title", "Default Title"] },
+                        "$$productTitle",
+                        "$$matchedVariant.title"
+                      ]
+                    },
+                    image: {
+                      $cond: [
+                        {
+                          $or: [
+                            { $eq: ["$$matchedVariant.image", null] },
+                            { $eq: ["$$matchedVariant.image", ""] }
+                          ]
+                        },
+                        "$$productImage",
+                        "$$matchedVariant.image"
+                      ]
+                    }
+                  }
+                ]
               }
             }
           }
         }
       },
+
+      // Clean up subProduct
+      {
+        $project: {
+          productInfo: 0,
+          subProduct: 0
+        }
+      },
+
+      // Group back the order
       {
         $group: {
           _id: "$_id",
@@ -261,6 +305,7 @@ const getPackingOrder = async (req, res) => {
           }
         }
       },
+
       {
         $addFields: {
           totalQuantity: {
@@ -343,6 +388,7 @@ const undoItem = async (req, res) => {
 
     item.packed = false;
     item.packedStatus = {...item.packedStatus, verified: {quantity: 0}, damaged: {quantity: 0}, outOfStock: {quantity: 0}};
+    item.subbed = false;
 
     await order.save();
     res.json({ message: 'Item successfully reset' });
@@ -355,18 +401,19 @@ const undoItem = async (req, res) => {
 //PATCH /api/packer/order/:id/cancel-sub-item
 const cancelSubItem = async (req, res) => {
   const { id } = req.params;
-  const { productId, variantId } = req.body;
+  const { shopifyLineItemId } = req.body;
 
   try {
     const order = await Order.findById(id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    const item = order.lineItems.find(
-      i => i.productId === productId && i.variantId === variantId
-    );
+    const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
-    item.substitution = null;
+    item.pickedStatus.damaged.subbed = null;
+    item.pickedStatus.outOfStock.subbed = null;
+    
+    item.subbed = false;
 
     await order.save();
     res.json({ message: 'Cancel Sub Item successfully' });
@@ -379,21 +426,18 @@ const cancelSubItem = async (req, res) => {
 //PATCH /api/packer/order/:id/confirm-sub-item
 const confirmSubItem = async (req, res) => {
   const { id } = req.params;
-  const { productId, variantId } = req.body;
+  const { shopifyLineItemId } = req.body;
 
   try {
     const order = await Order.findById(id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    const item = order.lineItems.find(
-      i => i.productId === productId && i.variantId === variantId
-    );
+    const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
-    item.substitution.used = true;
-
+    item.subbed = true;
     await order.save();
-    await adjustShopifyInventory(variantId, -1); // 🔻 Decrease original variant
+    //await adjustShopifyInventory(item.variantId, -1); // 🔻 Decrease original variant
     res.json({ message: 'Confirm Sub Item successfully' });
   } catch (err) {
     console.error("Confirm error:", err);
