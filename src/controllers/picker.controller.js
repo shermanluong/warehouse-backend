@@ -91,11 +91,16 @@ const getPickingOrder = async (req, res) => {
           as: "productInfo"
         }
       },
-      { $unwind: "$productInfo" },
+      {
+        $unwind: {
+          path: "$productInfo",
+          preserveNullAndEmptyArrays: true // This will keep lineItems even if no matching product is found
+        }
+      },
       {
         $addFields: {
-          "lineItems.productTitle": "$productInfo.title",
-          "lineItems.image": "$productInfo.image",
+          "lineItems.productTitle": { $ifNull: ["$productInfo.title", "Default Title"] },
+          "lineItems.image": { $ifNull: ["$productInfo.image", ""] },
           "lineItems.variantInfo": {
             $arrayElemAt: [
               {
@@ -113,11 +118,23 @@ const getPickingOrder = async (req, res) => {
         }
       },
 
-      // Lookup substitute product (only if substitution.used is true)
+      // Precompute the field to use for lookup (outOfStock or damaged)
+      {
+        $addFields: {
+          substitutionProductId: {
+            $ifNull: [
+              "$lineItems.pickedStatus.outOfStock.subbed.productId", 
+              "$lineItems.pickedStatus.damaged.subbed.productId"
+            ]
+          }
+        }
+      },
+
+      // Lookup substitute product (using the precomputed substitutionProductId)
       {
         $lookup: {
           from: "products",
-          localField: "lineItems.substitution.substituteProductId",
+          localField: "substitutionProductId", // Use the precomputed field
           foreignField: "shopifyProductId",
           as: "subProduct"
         }
@@ -125,7 +142,7 @@ const getPickingOrder = async (req, res) => {
 
       {
         $addFields: {
-          "lineItems.substitution.variantInfo": {
+          "lineItems.substitution": {
             $let: {
               vars: {
                 matchedVariant: {
@@ -142,7 +159,12 @@ const getPickingOrder = async (req, res) => {
                         cond: {
                           $eq: [
                             "$$variant.shopifyVariantId",
-                            "$lineItems.substitution.substituteVariantId"
+                            {
+                              $ifNull: [
+                                "$lineItems.pickedStatus.outOfStock.subbed.variantId",
+                                "$lineItems.pickedStatus.damaged.subbed.variantId"
+                              ]
+                            }
                           ]
                         }
                       },
@@ -453,50 +475,29 @@ const pickFlagItem = async (req, res) => {
 //PATCH /api/picker/order/:id/pick-flag
 const pickSubstituteItem = async (req, res) => {
   const { id } = req.params;
-  const { productId, variantId, reason, substituteProductId, substituteVariantId } = req.body;
-  console.log(`variant id ${variantId}`);
+  const { shopifyLineItemId, reason, quantity, subbedProductId, subbedVariantId } = req.body;
+
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
 
-  const item = order.lineItems.find(i => i.productId === productId);
+  const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
-  item.picked = false;
-  if (!item.flags.includes(reason)) {
-    const title = await getVariantDisplayTitle(productId, variantId);
-    await createNotification({
-      type: reason,
-      message: `${title} was marked as '${reason}' in order ${order.name}.`,
-      userRoles: ['admin'],
-      relatedOrderId: order._id,
-      relatedProductId: productId,
-      relatedVariantId: variantId
-    });
-    item.flags.push(reason);
+  if (reason === 'Out Of Stock') {
+    const outOfStock = item.pickedStatus.outOfStock;
+    outOfStock.quantity = quantity;
+    outOfStock.subbed.productId = subbedProductId;
+    outOfStock.subbed.variantId = subbedVariantId;
+  } else if (reason === 'Damaged' ) {
+    const damaged = item.pickedStatus.damaged;
+    damaged.quantity = quantity;
+    damaged.subbed.productId = subbedProductId;
+    damaged.subbed.variantId = subbedVariantId;
+  } else {
+    return res.status(404).json({message: 'Unreasonable'});
   }
 
-  if (substituteProductId && substituteVariantId) {
-    const title = await getVariantDisplayTitle(productId, variantId);
-    const susTitle = await getVariantDisplayTitle(substituteProductId, substituteVariantId);
-
-    await createNotification({
-      type: "SUBSTITUTION",
-      message: `${title} was substituted with ${susTitle} in order ${order.name} due to ${reason}.`,
-      userRoles: ['admin'],
-      relatedOrderId: order._id,
-      relatedProductId: productId,
-      relatedVariantId: variantId
-    });
-
-    item.substitution = {
-      used: false,
-      originalProductId: productId,
-      originalVariantId: variantId,
-      substituteProductId,
-      substituteVariantId,
-    };
-  }
-
+  item.picked = true;
   await order.save();
   res.json({ message: 'Flag updated', item });
 };
@@ -537,10 +538,14 @@ const completePicking = async (req, res) => {
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ message: "Order not found" });
 
+  order.lineItems.forEach(element => {
+    if (!element.picked) console.log(element);
+  });
+  
   if (!isPickingComplete(order.lineItems)) {
     return res.status(400).json({ message: 'All items must be picked or flagged to complete picking.' });
   }
-
+ 
   order.status = 'picked';
   await order.save();
 
@@ -554,6 +559,7 @@ module.exports = {
   pickPlusItem,
   pickMinusItem,
   pickFlagItem,
+  pickSubstituteItem,
   undoItem,
   scanBarcode,
   completePicking
