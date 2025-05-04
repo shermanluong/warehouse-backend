@@ -646,8 +646,8 @@ const completePacking = async (req, res) => {
     return res.status(400).json({ message: 'All items must be packed to complete packing.' });
   }
 
-  const note = `Order has packed in ${boxCount} boxes`;
-  
+  const note = boxCount == 1? `The order has been packed in ${boxCount} box` : `The order has been packed in ${boxCount} boxes`;
+
   if ( order?.delivery?.stopId) {
     await addLocate2uStopNoteService(order.delivery.stopId, note);
   }
