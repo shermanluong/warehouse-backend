@@ -180,7 +180,15 @@ const syncAllShopifyProducts = async (req, res) => {
         }
       );
 
+      // Check if response is valid
+      if (!response?.data?.data?.products) {
+        console.error('Invalid response:', response?.data);
+        break;
+      }
+
       const products = response.data.data.products;
+
+      // Loop through all product edges
       for (const edge of products.edges) {
         const p = edge.node;
         const shopifyProductId = p.id.split('/').pop();
@@ -211,8 +219,14 @@ const syncAllShopifyProducts = async (req, res) => {
         );
       }
 
+      // Check for next page
       hasNextPage = products.pageInfo.hasNextPage;
       cursor = products.pageInfo.endCursor;
+
+      // Add a delay between requests to avoid hitting API rate limits (e.g., 1 second)
+      if (hasNextPage) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Delay of 1 second
+      }
     }
 
     res.json({ message: '✅ Finished syncing all products' });
