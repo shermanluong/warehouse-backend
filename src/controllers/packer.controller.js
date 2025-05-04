@@ -6,6 +6,7 @@ const { adjustShopifyInventory} = require('../services/shopify.service');
 const { refundItem } = require('../services/shopify.service');
 const createNotification = require('../utils/createNotification');
 const { getVariantDisplayTitle } = require('../utils/getVariantTitle');
+const { addLocate2uStopNoteService} = require('../services/locate2u.service');
 const axios = require('axios');
 
 // const locate2UService = require('../services/locate2u.service'); // optional
@@ -645,6 +646,13 @@ const completePacking = async (req, res) => {
     return res.status(400).json({ message: 'All items must be packed to complete packing.' });
   }
 
+  const note = `Order has packed in ${boxCount} boxes`;
+  
+  if ( order?.delivery?.stopId) {
+    await addLocate2uStopNoteService(order.delivery.stopId, note);
+  }
+  
+  order.boxCount = boxCount;
   order.status = 'packed';
   order.boxCount = boxCount;
   await order.save();

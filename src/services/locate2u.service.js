@@ -100,9 +100,41 @@ const getLocate2uStopsService = async (tripDate, token = null) => {
     }
 };
 
+const addLocate2uStopNoteService = async (stopId, note) => {
+    const token = await getLocate2uTokenService();
+    console.log(token);
+    
+    try {
+      const response = await axios.post(
+        `${process.env.LOCATE2U_API_BASE_URL}/stops/${stopId}/notes`,
+        {
+          note: note,
+          type: "Stop Note",
+          photoFileNames: [],
+          documentFileNames: [],
+          metadata: null
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json-patch+json'
+          }
+        }
+      );
+  
+      console.log(response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error adding note to stop', error.message);
+      throw new Error('Failed to add note to stop.');
+    }
+};
+
 module.exports = { 
     getLocate2uTokenService, 
     getLocate2uTripsService, 
     getLocate2uTripDetailService, 
-    getLocate2uStopsService
+    getLocate2uStopsService,
+    addLocate2uStopNoteService
 };
