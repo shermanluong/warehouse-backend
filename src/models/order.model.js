@@ -58,6 +58,7 @@ const deliverySchema = new mongoose.Schema({
   driverName: String,
   tripId: String,
   tripDate: String,
+  stopId: String,
   stopNumber: Number,
   driverMemberId: String,
   startTime: String,

@@ -19,11 +19,8 @@ const assignLeastBusyPicker = async () => {
 
 const fetchAndStoreOrders = async (req, res) => {
   const { tripDate } = req.query;
-  console.log(tripDate);
   const orders = await getOrders([formatDate(tripDate)]); // Pull unfulfilled orders from Shopify
   const tripDetails = await getLocate2uStopsService(tripDate);
-  console.log("orders count", orders.length);
-  console.log("tripDetails count", tripDetails.length);
   
   let count = 0;
 
@@ -37,6 +34,7 @@ const fetchAndStoreOrders = async (req, res) => {
           driverName: tripDetail?.driverName,
           driverMemberId: tripDetail?.teamMemberId,
           tripId: tripDetail?.tripId,
+          stopId: stop?.stopId,
           stopNumber: stop?.order,
           startTime: tripDetail?.startTime,
           endTime: tripDetail?.endTime,
@@ -108,7 +106,6 @@ const fetchAndStoreOrders = async (req, res) => {
     }
   };
 
-  console.log(count);
   res.json({ message: 'Synced', count: count});
 };
 
