@@ -7,6 +7,7 @@ const { refundItem } = require('../services/shopify.service');
 const createNotification = require('../utils/createNotification');
 const { getVariantDisplayTitle } = require('../utils/getVariantTitle');
 const { addLocate2uStopNoteService} = require('../services/locate2u.service');
+const { sendSlackNotification } = require('../services/slack.service');
 const axios = require('axios');
 
 // const locate2UService = require('../services/locate2u.service'); // optional
@@ -652,6 +653,7 @@ const completePacking = async (req, res) => {
     await addLocate2uStopNoteService(order.delivery.stopId, note);
   }
   
+  await sendSlackNotification("Slack Test!");
   order.boxCount = boxCount;
   order.status = 'packed';
   order.boxCount = boxCount;

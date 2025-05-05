@@ -102,7 +102,6 @@ const getLocate2uStopsService = async (tripDate, token = null) => {
 
 const addLocate2uStopNoteService = async (stopId, note) => {
     const token = await getLocate2uTokenService();
-    console.log(token);
     
     try {
       const response = await axios.post(
@@ -123,7 +122,6 @@ const addLocate2uStopNoteService = async (stopId, note) => {
         }
       );
   
-      console.log(response.data);
       return response.data;
     } catch (error) {
       console.error('Error adding note to stop', error.message);
