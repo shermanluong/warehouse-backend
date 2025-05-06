@@ -32,24 +32,20 @@ const getPickerOrders = async (req, res) => {
           customer: 1, // ✅ include customer field
           totalQuantity: { $sum: "$lineItems.quantity" },
           pickedCount: {
-            $sum: {
-              $map: {
+            $size: {
+              $filter: {
                 input: "$lineItems",
                 as: "item",
-                in: {
-                  $cond: [{ $eq: ["$$item.picked", true] }, "$$item.quantity", 0]
-                }
+                cond: { $eq: ["$$item.picked", true] }
               }
             }
           },
           packedCount: {
-            $sum: {
-              $map: {
+            $size: {
+              $filter: {
                 input: "$lineItems",
                 as: "item",
-                in: {
-                  $cond: [{ $eq: ["$$item.packed", true] }, "$$item.quantity", 0]
-                }
+                cond: { $eq: ["$$item.packed", true] }
               }
             }
           },
@@ -301,34 +297,21 @@ const getPickingOrder = async (req, res) => {
       // Compute totals
       {
         $addFields: {
-          totalQuantity: {
-            $sum: {
-              $map: {
-                input: "$lineItems",
-                as: "item",
-                in: "$$item.quantity"
-              }
-            }
-          },
           pickedCount: {
-            $sum: {
-              $map: {
+            $size: {
+              $filter: {
                 input: "$lineItems",
                 as: "item",
-                in: {
-                  $cond: [{ $eq: ["$$item.picked", true] }, "$$item.quantity", 0]
-                }
+                cond: { $eq: ["$$item.picked", true] }
               }
             }
           },
           packedCount: {
-            $sum: {
-              $map: {
+            $size: {
+              $filter: {
                 input: "$lineItems",
                 as: "item",
-                in: {
-                  $cond: [{ $eq: ["$$item.packed", true] }, "$$item.quantity", 0]
-                }
+                cond: { $eq: ["$$item.packed", true] }
               }
             }
           }

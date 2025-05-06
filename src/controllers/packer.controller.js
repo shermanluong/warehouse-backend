@@ -42,34 +42,29 @@ const getPickedOrders = async (req, res) => {
           status: 1,
           pickerId: 1,
           packerId: 1,
-          adminNote: { $ifNull: ["$adminNote", null] }, // 👈 force include null if missing
+          adminNote: { $ifNull: ["$adminNote", null] },
           orderNote: 1,
           createdAt: 1,
-          customer: 1, // ✅ include customer field
-          totalQuantity: { $sum: "$lineItems.quantity" },
+          customer: 1,
+          lineItemCount: { $size: "$lineItems" },
           pickedCount: {
-            $sum: {
-              $map: {
+            $size: {
+              $filter: {
                 input: "$lineItems",
                 as: "item",
-                in: {
-                  $cond: [{ $eq: ["$$item.picked", true] }, "$$item.quantity", 0]
-                }
+                cond: { $eq: ["$$item.picked", true] }
               }
             }
           },
           packedCount: {
-            $sum: {
-              $map: {
+            $size: {
+              $filter: {
                 input: "$lineItems",
                 as: "item",
-                in: {
-                  $cond: [{ $eq: ["$$item.packed", true] }, "$$item.quantity", 0]
-                }
+                cond: { $eq: ["$$item.packed", true] }
               }
             }
-          },
-          lineItemCount: { $size: "$lineItems" } // ✅ Line item count added here
+          }
         }
       }
     ]);
@@ -310,34 +305,21 @@ const getPackingOrder = async (req, res) => {
 
       {
         $addFields: {
-          totalQuantity: {
-            $sum: {
-              $map: {
-                input: "$lineItems",
-                as: "item",
-                in: "$$item.quantity"
-              }
-            }
-          },
           pickedCount: {
-            $sum: {
-              $map: {
+            $size: {
+              $filter: {
                 input: "$lineItems",
                 as: "item",
-                in: {
-                  $cond: [{ $eq: ["$$item.picked", true] }, "$$item.quantity", 0]
-                }
+                cond: { $eq: ["$$item.picked", true] }
               }
             }
           },
           packedCount: {
-            $sum: {
-              $map: {
+            $size: {
+              $filter: {
                 input: "$lineItems",
                 as: "item",
-                in: {
-                  $cond: [{ $eq: ["$$item.packed", true] }, "$$item.quantity", 0]
-                }
+                cond: { $eq: ["$$item.packed", true] }
               }
             }
           }
