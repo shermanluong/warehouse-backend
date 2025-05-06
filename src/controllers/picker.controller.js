@@ -376,13 +376,17 @@ const pickPlusItem =  async (req, res) => {
   const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
+  if (item.picked === true) {
+    return res.status(404).json({ message: 'Item has already picked' });
+  }
+
   const pickedStatus = item.pickedStatus;
   let totalPickedQuantity = pickedStatus.verified.quantity + pickedStatus.damaged.quantity + pickedStatus.outOfStock.quantity;
 
   if (totalPickedQuantity < item.quantity) {
     totalPickedQuantity += 1;
     item.pickedStatus.verified.quantity += 1;
-  }
+  } 
 
   if (totalPickedQuantity >= item.quantity) {
     item.picked = true;

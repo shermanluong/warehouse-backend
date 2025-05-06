@@ -562,6 +562,10 @@ const packPlusItem =  async (req, res) => {
   const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
+  if (item.packed === true) {
+    return res.status(404).json({ message: 'Item has already packed' });
+  }
+
   if (item.packedStatus.verified.quantity < item.pickedStatus.verified.quantity) {
     item.packedStatus.verified.quantity += 1;
   }
