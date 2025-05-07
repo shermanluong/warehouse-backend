@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const User = require('../models/user.model');
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
+const Driver = require('../models/driver.model');
 const mongoose = require('mongoose');
 const { formatDate } = require('../utils/formateDate');
 
@@ -394,6 +395,16 @@ const getProductStatuses = async (req, res) => {
   }
 };
 
+const getDrivers = async (req, res) => {
+  try {
+    const drivers = await Driver.find();
+    res.json({ drivers });
+  } catch (err) {
+    console.error('Failed to fetch drivers:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
 module.exports = {
   getLogs,
   getDashboardStats,
@@ -403,5 +414,6 @@ module.exports = {
   addOrderNote,
   addItemNote,
   getProductVendors,
-  getProductStatuses
+  getProductStatuses,
+  getDrivers
 };
