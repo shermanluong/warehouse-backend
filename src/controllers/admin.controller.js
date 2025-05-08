@@ -102,6 +102,8 @@ const getOrders = async (req, res) => {
     const selectedDate = req.query.date || '';
     const pickerName = req.query.picker || '';
     const packerName = req.query.packer || '';
+    const driver = req.query.driver || '';
+    const tag = req.query.tag || '';
     
     const textSearchQuery = {
       $and: [
@@ -138,6 +140,20 @@ const getOrders = async (req, res) => {
       additionalFilters.push({ 'packer.realName': { $regex: packerName, $options: 'i' } });
     }
 
+    if (driver) {
+      additionalFilters.push({'delivery.driverMemberId': { $regex: driver, $options: 'i'} });
+    }
+
+    if (tag) {
+      const escapeRegex = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      additionalFilters.push({
+        tags: {
+          $regex: `(?:^|,\\s*)${escapeRegex(tag)}(?:,|$)`,
+          $options: 'i'
+        }
+      });
+    }
+   
     const orders = await Order.aggregate([
       // Lookup picker
       {
