@@ -18,90 +18,97 @@ const assignLeastBusyPicker = async () => {
 };
 
 const fetchAndStoreOrders = async (req, res) => {
-  const { tripDate } = req.query;
+  const { tripDate, driver, tag } = req.query;
   const orders = await getOrders([formatDate(tripDate)]); // Pull unfulfilled orders from Shopify
   const tripDetails = await getLocate2uStopsService(tripDate);
   
   let count = 0;
 
   for (const tripDetail of tripDetails) {
-    for (const stop of tripDetail.stops) {
-      const order = orders.find(o => o.order_number == stop?.customFields?.orderid);
-      if (order) {
-        const customer = order.customer;
-        const picker = await assignLeastBusyPicker();
-        const delivery = {
-          driverName: tripDetail?.driverName,
-          driverMemberId: tripDetail?.teamMemberId,
-          tripId: tripDetail?.tripId,
-          stopId: stop?.stopId,
-          stopNumber: stop?.order,
-          startTime: tripDetail?.startTime,
-          endTime: tripDetail?.endTime,
-        };
-        const lineItems = order.line_items.map((item) => ({
-          shopifyLineItemId: item.id,  
-          productId: item.product_id,
-          variantId: item.variant_id,
-          quantity: item.quantity,
-          picked: false,
-          packed: false,
-          pickedStatus: {
-            verified: {quantity : 0}, 
-            damagedQuantity: {quantity : 0}, 
-            outOfStockQuantity: {quantity: 0}
-          },
-          packedStatus: {
-            verified: {quantity : 0}, 
-            damagedQuantity: {quantity : 0}, 
-            outOfStockQuantity: {quantity: 0}
-          },
-          substitution: null,
-          flags: [],
-          adminNote: '', // You can populate this manually or from your product DB
-          customerNote: item.properties?.find(p => p.name === 'Note')?.value || '',
-        }));
-        
-        await Order.findOneAndUpdate(
-          { shopifyOrderId: order.id },
-          {
-            $set: {
-              shopifyOrderId: order.id,
-              name: order.name,
-              orderNumber: order.order_number,
-              status: 'new',
-              tags: order.tags,
-              orderNote: order.note, // general order-level customer note
-              pickerId: picker._id,
-              delivery: delivery,
-              lineItems,
-              customer: customer ? {
-                id: customer.id,
-                email: customer.email,
-                first_name: customer.first_name,
-                last_name: customer.last_name,
-                phone: customer.phone,
-                default_address: customer.default_address ? {
-                  address1: customer.default_address.address1,
-                  address2: customer.default_address.address2,
-                  city: customer.default_address.city,
-                  province: customer.default_address.province,
-                  country: customer.default_address.country,
-                  zip: customer.default_address.zip
-                } : {}
-              } : null
-            }
-          },
-          { upsert: true }
-        );
-    
-        const newLineItemCount = order.line_items.reduce((acc, item) => acc + item.quantity, 0);
-    
-        await User.findByIdAndUpdate(picker._id, {
-          $inc: { 'stats.currentLineItemsAssigned': newLineItemCount }
+    if (tripDetail.teamMemberId == driver) {
+      for (const stop of tripDetail.stops) {
+        const order = orders.find(o => {
+          const orderIdMatch = o.order_number == stop?.customFields?.orderid;
+          const tagMatch = !tag || new RegExp(`(?:^|,\\s*)${tag}(?:,|$)`, 'i').test(o.tags || '');
+          return orderIdMatch && tagMatch;
         });
-
-        count++;
+  
+        if (order) {
+          const customer = order.customer;
+          const picker = await assignLeastBusyPicker();
+          const delivery = {
+            driverName: tripDetail?.driverName,
+            driverMemberId: tripDetail?.teamMemberId,
+            tripId: tripDetail?.tripId,
+            stopId: stop?.stopId,
+            stopNumber: stop?.order,
+            startTime: tripDetail?.startTime,
+            endTime: tripDetail?.endTime,
+          };
+          const lineItems = order.line_items.map((item) => ({
+            shopifyLineItemId: item.id,  
+            productId: item.product_id,
+            variantId: item.variant_id,
+            quantity: item.quantity,
+            picked: false,
+            packed: false,
+            pickedStatus: {
+              verified: {quantity : 0}, 
+              damagedQuantity: {quantity : 0}, 
+              outOfStockQuantity: {quantity: 0}
+            },
+            packedStatus: {
+              verified: {quantity : 0}, 
+              damagedQuantity: {quantity : 0}, 
+              outOfStockQuantity: {quantity: 0}
+            },
+            substitution: null,
+            flags: [],
+            adminNote: '', // You can populate this manually or from your product DB
+            customerNote: item.properties?.find(p => p.name === 'Note')?.value || '',
+          }));
+          
+          await Order.findOneAndUpdate(
+            { shopifyOrderId: order.id },
+            {
+              $set: {
+                shopifyOrderId: order.id,
+                name: order.name,
+                orderNumber: order.order_number,
+                status: 'new',
+                tags: order.tags,
+                orderNote: order.note, // general order-level customer note
+                pickerId: picker._id,
+                delivery: delivery,
+                lineItems,
+                customer: customer ? {
+                  id: customer.id,
+                  email: customer.email,
+                  first_name: customer.first_name,
+                  last_name: customer.last_name,
+                  phone: customer.phone,
+                  default_address: customer.default_address ? {
+                    address1: customer.default_address.address1,
+                    address2: customer.default_address.address2,
+                    city: customer.default_address.city,
+                    province: customer.default_address.province,
+                    country: customer.default_address.country,
+                    zip: customer.default_address.zip
+                  } : {}
+                } : null
+              }
+            },
+            { upsert: true }
+          );
+      
+          const newLineItemCount = order.line_items.reduce((acc, item) => acc + item.quantity, 0);
+      
+          await User.findByIdAndUpdate(picker._id, {
+            $inc: { 'stats.currentLineItemsAssigned': newLineItemCount }
+          });
+  
+          count++;
+        }
       }
     }
   };
