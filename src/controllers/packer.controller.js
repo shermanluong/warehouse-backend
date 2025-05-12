@@ -35,6 +35,14 @@ const getPickedOrders = async (req, res) => {
       { $match: match },
       { $sort: { createdAt: -1 } },
       {
+        $lookup: {
+          from: "totes", // make sure this matches your actual MongoDB collection name
+          localField: "totes",
+          foreignField: "_id",
+          as: "totes"
+        }
+      },
+      {
         $project: {
           shopifyOrderId: 1,
           name: 1,
@@ -42,6 +50,16 @@ const getPickedOrders = async (req, res) => {
           status: 1,
           pickerId: 1,
           packerId: 1,
+          totes: {
+            $map: {
+              input: "$totes",
+              as: "tote",
+              in: {
+                _id: "$$tote._id",
+                name: "$$tote.name"
+              }
+            }
+          },
           adminNote: { $ifNull: ["$adminNote", null] },
           orderNote: 1,
           createdAt: 1,
@@ -67,7 +85,7 @@ const getPickedOrders = async (req, res) => {
           }
         }
       }
-    ]);
+    ]);    
 
     res.json(orders);
   } catch (err) {
