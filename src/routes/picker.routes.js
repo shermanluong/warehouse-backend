@@ -12,7 +12,9 @@ const {
     scanBarcode,
     completePicking,
     getAvailableTotes,
-    assignTote
+    assignTote,
+    removeTote,
+    assignedTotes
  } = require('../controllers/picker.controller');
 const router = express.Router();
 
@@ -28,5 +30,7 @@ router.patch('/order/:id/scan', auth(['picker']), scanBarcode);
 router.post('/order/:id/complete-picking', auth(['picker']), completePicking);
 router.get('/totes', auth(['picker']), getAvailableTotes);
 router.post('/assign-tote', auth(['picker']), assignTote);
+router.post('/remove-tote', auth(['picker']), removeTote);
+router.get('/assigned-totes/:orderId', auth(['picker']), assignedTotes);
 
 module.exports = router;

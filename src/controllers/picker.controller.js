@@ -551,8 +551,6 @@ const getAvailableTotes =  async (req, res) => {
 
 const assignTote = async (req, res) => {
   const { toteId, orderId } = req.body;
-  console.log(toteId);
-  console.log(orderId);
   try {
     // Find the tote and the order by their respective IDs
     const tote = await Tote.findById(toteId);
@@ -579,6 +577,50 @@ const assignTote = async (req, res) => {
   }
 };
 
+const removeTote = async (req, res) => {
+  const { toteId, orderId } = req.body;
+
+  if (!toteId || !orderId) {
+    return res.status(400).json({ error: "Missing toteId or orderId" });
+  }
+
+  try {
+    const tote = await Tote.findById(toteId);
+    const order = await Order.findById(orderId);
+
+    if (!tote || !order) {
+      return res.status(404).json({ error: "Tote or Order not found" });
+    }
+
+    // Unassign tote
+    tote.assignedToOrder = null;
+    tote.status = "available";
+    await tote.save();
+
+    // Remove tote from order's list
+    /*order.totes = order.totes.filter((id) => id.toString() !== toteId);
+    await order.save();*/
+
+    res.json({ message: "Tote removed successfully", tote, order });
+  } catch (error) {
+    res.status(500).json({ error: "Server error", details: error.message });
+  }
+};
+
+const assignedTotes = async (req, res) => {
+  const { orderId } = req.params;
+
+  try {
+    const assignedTotes = await Tote.find({
+      assignedToOrder: new mongoose.Types.ObjectId(orderId),
+  });
+    res.json(assignedTotes);
+  } catch (err) {
+    console.error("Error fetching assigned totes:", err);
+    res.status(500).json({ error: "Failed to fetch assigned totes" });
+  }
+}
+
 module.exports = {
   getPickerOrders,
   getPickingOrder,
@@ -591,5 +633,7 @@ module.exports = {
   scanBarcode,
   completePicking,
   getAvailableTotes,
-  assignTote
+  assignTote,
+  removeTote,
+  assignedTotes
 };
