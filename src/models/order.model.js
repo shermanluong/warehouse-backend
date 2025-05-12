@@ -79,6 +79,7 @@ const orderSchema = new Schema({
   tags: String,
   pickerId: { type: Types.ObjectId, ref: 'User', default: null },
   packerId: { type: Types.ObjectId, ref: 'User', default: null },
+  totes: [{ type: Schema.Types.ObjectId, ref: 'Tote' }],
   lineItems: [lineItemSchema],
   photos: [photoSchema], // <-- changed from photoUrl: String
   delivery: deliverySchema,

@@ -565,11 +565,10 @@ const assignTote = async (req, res) => {
     tote.status = 'assigned'; // Update the status of the tote
     await tote.save();
 
-    // Optionally, add the tote to the order's tote list
-    /*if (!order.totes.includes(toteId)) {
+    if (!order.totes.includes(toteId)) {
       order.totes.push(toteId);
       await order.save();
-    }*/
+    }
 
     res.status(200).json({ message: "Tote assigned to order", tote, order });
   } catch (error) {
@@ -598,8 +597,8 @@ const removeTote = async (req, res) => {
     await tote.save();
 
     // Remove tote from order's list
-    /*order.totes = order.totes.filter((id) => id.toString() !== toteId);
-    await order.save();*/
+    order.totes = order.totes.filter((id) => id.toString() !== toteId);
+    await order.save();
 
     res.json({ message: "Tote removed successfully", tote, order });
   } catch (error) {

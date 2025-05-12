@@ -25,7 +25,7 @@ const fetchAndStoreOrders = async (req, res) => {
   let count = 0;
 
   for (const tripDetail of tripDetails) {
-    if (tripDetail.teamMemberId == driver) {
+    if (tripDetail.teamMemberId == driver || driver == '') {
       for (const stop of tripDetail.stops) {
         const order = orders.find(o => {
           const orderIdMatch = o.order_number == stop?.customFields?.orderid;
