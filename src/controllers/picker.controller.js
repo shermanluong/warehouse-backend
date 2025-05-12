@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Order = require('../models/order.model');
+const Tote = require('../models/tote.model');
 const createNotification = require('../utils/createNotification');
 const { getVariantDisplayTitle } = require('../utils/getVariantTitle');
 
@@ -539,6 +540,45 @@ const completePicking = async (req, res) => {
   res.json({ success: true });
 };
 
+const getAvailableTotes =  async (req, res) => {
+  try {
+    const availableTotes = await Tote.find({ status: 'available' });
+    res.json(availableTotes);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+const assignTote = async (req, res) => {
+  const { toteId, orderId } = req.body;
+  console.log(toteId);
+  console.log(orderId);
+  try {
+    // Find the tote and the order by their respective IDs
+    const tote = await Tote.findById(toteId);
+    const order = await Order.findById(orderId);
+
+    if (!tote || !order) {
+      return res.status(404).json({ error: "Tote or Order not found" });
+    }
+
+    // Assign the tote to the order and update the tote's order field
+    tote.assignedToOrder = orderId;
+    tote.status = 'assigned'; // Update the status of the tote
+    await tote.save();
+
+    // Optionally, add the tote to the order's tote list
+    /*if (!order.totes.includes(toteId)) {
+      order.totes.push(toteId);
+      await order.save();
+    }*/
+
+    res.status(200).json({ message: "Tote assigned to order", tote, order });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to assign tote to order", details: error.message });
+  }
+};
+
 module.exports = {
   getPickerOrders,
   getPickingOrder,
@@ -549,5 +589,7 @@ module.exports = {
   pickSubstituteItem,
   undoItem,
   scanBarcode,
-  completePicking
+  completePicking,
+  getAvailableTotes,
+  assignTote
 };

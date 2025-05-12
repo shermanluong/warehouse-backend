@@ -3,6 +3,8 @@ const User = require('../models/user.model');
 const Order = require('../models/order.model');
 const Product = require('../models/product.model');
 const Driver = require('../models/driver.model');
+const Tote = require('../models/tote.model');
+
 const mongoose = require('mongoose');
 const { formatDate } = require('../utils/formateDate');
 
@@ -421,6 +423,16 @@ const getDrivers = async (req, res) => {
   }
 };
 
+const addTote = async (req, res) => {
+  try {
+    const tote = new Tote({name: req.body.name});
+    await tote.save();
+    res.status(201).json(tote);
+  } catch (err) {
+    res.status(400).json({error: err.message});
+  }
+};
+
 module.exports = {
   getLogs,
   getDashboardStats,
@@ -431,5 +443,6 @@ module.exports = {
   addItemNote,
   getProductVendors,
   getProductStatuses,
-  getDrivers
+  getDrivers,
+  addTote
 };

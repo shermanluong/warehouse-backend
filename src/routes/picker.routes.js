@@ -11,6 +11,8 @@ const {
     undoItem,
     scanBarcode,
     completePicking,
+    getAvailableTotes,
+    assignTote
  } = require('../controllers/picker.controller');
 const router = express.Router();
 
@@ -24,5 +26,7 @@ router.patch('/order/:id/pick-substitute', auth(['picker', 'packer']), pickSubst
 router.patch('/order/:id/undo-item', auth(['picker', 'packer']), undoItem);
 router.patch('/order/:id/scan', auth(['picker']), scanBarcode);
 router.post('/order/:id/complete-picking', auth(['picker']), completePicking);
+router.get('/totes', auth(['picker']), getAvailableTotes);
+router.post('/assign-tote', auth(['picker']), assignTote);
 
 module.exports = router;

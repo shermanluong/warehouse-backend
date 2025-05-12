@@ -10,7 +10,8 @@ const {
   getProductVendors,
   getDrivers,
   addOrderNote,
-  addItemNote
+  addItemNote,
+  addTote
 } = require('../controllers/admin.controller');
 const auth = require('../middleware/auth.middleware');
 
@@ -25,6 +26,7 @@ router.get('/getProducts', auth(['admin']), getProducts);
 router.get('/getProductVendors', auth(['admin']), getProductVendors); 
 router.get('/getProductStatuses', auth(['admin']), getProductStatuses); 
 router.get('/getDrivers', auth(['admin']), getDrivers); 
+router.post('/addTote', addTote); 
 router.patch('/order/:orderId/add-order-note', auth(['admin']), addOrderNote); 
 router.patch('/order/:orderId/add-item-note', auth(['admin']), addItemNote); 
 
