@@ -229,7 +229,6 @@ const getPickingOrder = async (req, res) => {
         }
       },
 
-      // Sort by SKU
       {
         $addFields: {
           lineItems: {
@@ -240,38 +239,7 @@ const getPickingOrder = async (req, res) => {
                 $mergeObjects: [
                   "$$item",
                   {
-                    skuSortKey: {
-                      $let: {
-                        vars: {
-                          firstPart: { $arrayElemAt: [{ $split: ["$$item.variantInfo.sku", "-"] }, 0] },
-                          secondPart: { $arrayElemAt: [{ $split: ["$$item.variantInfo.sku", "-"] }, 1] },
-                          thirdPart: { $arrayElemAt: [{ $split: ["$$item.variantInfo.sku", "-"] }, 2] }
-                        },
-                        in: {
-                          firstPartValue: {
-                            $cond: {
-                              if: { $eq: ["$$firstPart", ""] },
-                              then: -1, // Empty first part should come first
-                              else: { $toInt: { $ifNull: ["$$firstPart", 0] } }
-                            }
-                          },
-                          secondPartValue: {
-                            $cond: {
-                              if: { $eq: ["$$secondPart", ""] },
-                              then: "", // Empty second part should come last
-                              else: "$$secondPart" // Sort as string
-                            }
-                          },
-                          thirdPartValue: {
-                            $cond: {
-                              if: { $eq: ["$$thirdPart", ""] },
-                              then: -1, // Empty third part should come first
-                              else: { $toInt: "$$thirdPart" } // Sort numerically
-                            }
-                          }
-                        }
-                      }
-                    }
+                    skuSortKey: "$$item.variantInfo.sku"
                   }
                 ]
               }
@@ -279,16 +247,13 @@ const getPickingOrder = async (req, res) => {
           }
         }
       },
-      
       {
         $addFields: {
           lineItems: {
             $sortArray: {
               input: "$lineItems",
               sortBy: {
-                "skuSortKey.firstPartValue": 1,  // First part ascending (numeric)
-                "skuSortKey.secondPartValue": 1, // Second part lexicographical (string)
-                "skuSortKey.thirdPartValue": 1   // Third part numeric ascending
+                skuSortKey: 1 // Lexicographic sort
               }
             }
           }
