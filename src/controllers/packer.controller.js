@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Order = require('../models/order.model');
+const Tote = require('../models/tote.model');
 const { Types } = require('mongoose');
 const ObjectId = Types.ObjectId;
 const { adjustShopifyInventory} = require('../services/shopify.service');
@@ -607,29 +608,46 @@ const isPackingComplete = (lineItems) => {
 
 // POST /api/picker/order/:id/complete-picking
 const completePacking = async (req, res) => {
-  const { id } = req.params;
-  const { boxCount } = req.body;
-  
-  const order = await Order.findById(id);
-  if (!order) return res.status(404).json({ message: "Order not found" });
+  try {
+    const { id } = req.params;
+    const { boxCount } = req.body;
 
-  if (!isPackingComplete(order.lineItems)) {
-    return res.status(400).json({ message: 'All items must be packed to complete packing.' });
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (!isPackingComplete(order.lineItems)) {
+      return res.status(400).json({ message: 'All items must be packed to complete packing.' });
+    }
+
+    const note = boxCount === 1
+      ? `The order has been packed in ${boxCount} box`
+      : `The order has been packed in ${boxCount} boxes`;
+
+    if (order.delivery && order.delivery.stopId) {
+      await addLocate2uStopNoteService(order.delivery.stopId, note);
+    }
+
+    await sendSlackNotification("Slack Test!");
+    order.boxCount = boxCount;
+    order.status = 'packed';
+    await order.save();
+
+    for (const t of order.totes) {
+      const tote = await Tote.findById(t);
+      if (tote) {
+        tote.status = 'available';
+        tote.assignedToOrder = null;
+        await tote.save();
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error in completePacking:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-
-  const note = boxCount == 1? `The order has been packed in ${boxCount} box` : `The order has been packed in ${boxCount} boxes`;
-
-  if ( order?.delivery?.stopId) {
-    await addLocate2uStopNoteService(order.delivery.stopId, note);
-  }
-  
-  await sendSlackNotification("Slack Test!");
-  order.boxCount = boxCount;
-  order.status = 'packed';
-  order.boxCount = boxCount;
-  await order.save();
-
-  res.json({ success: true });
 };
 
 module.exports = {
