@@ -251,64 +251,7 @@ const getApprovalOrders = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const search = req.query.search || '';
-    const sortField = req.query.sort || 'createdAt';
-    const sortOrder = req.query.order === 'desc' ? -1 : 1;
-    const selectedDate = req.query.date || '';
-    const pickerName = req.query.picker || '';
-    const packerName = req.query.packer || '';
-    const driver = req.query.driver || '';
-    const tag = req.query.tag || '';
-    
-    const textSearchQuery = {
-      $and: [
-        { 
-          $or: [
-            { name: { $regex: search, $options: 'i' } },
-            {
-              $expr: {
-                $regexMatch: {
-                  input: { $concat: ['$customer.first_name', ' ', '$customer.last_name'] },
-                  regex: search,
-                  options: 'i'
-                }
-              }
-            }
-          ]
-        },
-        {
-          tags: {
-            $regex: formatDate(selectedDate), // Assuming selectedDate is formatted properly for comparison
-            $options: 'i'
-          }
-        }
-      ]
-    };
 
-    const additionalFilters = [];
-
-    if (pickerName) {
-      additionalFilters.push({ 'picker.realName': { $regex: pickerName, $options: 'i' } });
-    }
-
-    if (packerName) {
-      additionalFilters.push({ 'packer.realName': { $regex: packerName, $options: 'i' } });
-    }
-
-    if (driver) {
-      additionalFilters.push({'delivery.driverMemberId': { $regex: driver, $options: 'i'} });
-    }
-
-    if (tag) {
-      const escapeRegex = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      additionalFilters.push({
-        tags: {
-          $regex: `(?:^|,\\s*)${escapeRegex(tag)}(?:,|$)`,
-          $options: 'i'
-        }
-      });
-    }
-   
     const orders = await Order.aggregate([
       // Lookup picker
       {
@@ -351,12 +294,6 @@ const getApprovalOrders = async (req, res) => {
           tags: {$first: '$tags'},
         }
       },
-
-      // Text search
-      { $match: textSearchQuery },
-
-      // Optional filters
-      ...(additionalFilters.length > 0 ? [{ $match: { $and: additionalFilters } }] : []),
 
       // Pagination with total count
       {
