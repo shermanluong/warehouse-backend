@@ -5,6 +5,7 @@ const {
   getDashboardStats,
   getOrders,
   getApprovalOrders,
+  getApprovalOrder,
   getOrder,
   getProducts,
   getProductStatuses,
@@ -23,6 +24,7 @@ router.get('/logs', auth(['admin']), getLogs);
 router.get('/stats', auth(['admin']), getDashboardStats); 
 router.get('/getOrders', auth(['admin']), getOrders);
 router.get('/getApprovalOrders', auth(['admin']), getApprovalOrders);
+router.get('/getApprovalOrder/:id', auth(['admin']), getApprovalOrder);
 router.get('/order/:id', auth(['admin']), getOrder);  
 router.get('/getProducts', auth(['admin']), getProducts); 
 router.get('/getProductVendors', auth(['admin']), getProductVendors); 

@@ -38,6 +38,7 @@ const lineItemSchema = new mongoose.Schema({
   customerNote: String,
   refund: {type: Boolean, default: false},
   subbed: {type: Boolean, default: false},
+  approved: {type: Boolean, default: false},
 }, { _id: false });
 
 const logSchema = new mongoose.Schema({

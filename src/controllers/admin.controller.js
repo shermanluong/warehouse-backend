@@ -246,96 +246,6 @@ const getOrders = async (req, res) => {
   }
 };
 
-// Fetch orders assigned to the picker (e.g., from query param or session)
-const getApprovalOrders = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-
-    const orders = await Order.aggregate([
-      // Lookup picker
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'pickerId',
-          foreignField: '_id',
-          as: 'picker'
-        }
-      },
-      { $unwind: { path: '$picker', preserveNullAndEmptyArrays: true } },
-
-      // Lookup packer
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'packerId',
-          foreignField: '_id',
-          as: 'packer'
-        }
-      },
-      { $unwind: { path: '$packer', preserveNullAndEmptyArrays: true } },
-
-      // Regroup orders
-      {
-        $group: {
-          _id: '$_id',
-          shopifyOrderId: { $first: '$shopifyOrderId' },
-          name: { $first: '$name' },
-          orderNumber: { $first: '$orderNumber' },
-          status: { $first: '$status' },
-          createdAt: { $first: '$createdAt' },
-          customer: { $first: '$customer' },
-          picker: { $first: '$picker' },
-          packer: { $first: '$packer' },
-          delivery: { $first: '$delivery' },
-          adminNote: { $first: '$adminNote' },
-          orderNote: { $first: '$orderNote' },
-          lineItemCount: {$sum: {$size : '$lineItems'}},
-          tags: {$first: '$tags'},
-        }
-      },
-
-      // Pagination with total count
-      {
-        $facet: {
-          data: [
-            {
-              $sort: {
-                'delivery.tripId': 1, // Sort tripId in ascending order (increase)
-                'delivery.stopNumber': -1 // Sort stopNumber in descending order (decrease)
-              }
-            },
-            { $skip: (page - 1) * limit },
-            { $limit: limit }
-          ],
-          totalCount: [{ $count: 'count' }]
-        }
-      },
-
-      {
-        $project: {
-          data: 1,
-          total: { $arrayElemAt: ['$totalCount.count', 0] }
-        }
-      }
-    ]);
-
-    const result = orders[0] || { data: [], total: 0 };
-
-    res.json({
-      orders: result.data.map(order => ({
-        ...order,
-        picker: { name: order.picker?.realName },
-        packer: { name: order.packer?.realName }
-      })),
-      total: result.total
-    });
-  } catch (err) {
-    console.error('Error fetching admin orders:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
 // Get /api/admin/order/:id
 const getOrder = async (req, res) => {
   const orderId = req.params.id;
@@ -378,6 +288,250 @@ const getOrder = async (req, res) => {
       {
         $group: {
           _id: "$_id",
+          shopifyOrderId: { $first: "$shopifyOrderId" },
+          status: { $first: "$status" },
+          pickerId: { $first: "$pickerId" },
+          packerId: { $first: "$packerId" },
+          createdAt: { $first: "$createdAt" },
+          customer: { $first: "$customer" },
+          delivery: { $first: "$delivery" },
+          lineItems: { $push: "$lineItems" },
+        }
+      },
+      {
+        $addFields: {
+          lineItems: {
+            $sortArray: {
+              input: "$lineItems",
+              sortBy: { "variantInfo.sku": 1 }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          totalQuantity: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: "$$item.quantity"
+              }
+            }
+          },
+          pickedCount: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: {
+                  $cond: [{ $eq: ["$$item.picked", true] }, "$$item.quantity", 0]
+                }
+              }
+            }
+          },
+          packedCount: {
+            $sum: {
+              $map: {
+                input: "$lineItems",
+                as: "item",
+                in: {
+                  $cond: [{ $eq: ["$$item.packed", true] }, "$$item.quantity", 0]
+                }
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    if (!order || order.length === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.json(order[0]);
+  } catch (error) {
+    console.error("Error getting picking order:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Fetch orders assigned to the picker (e.g., from query param or session)
+const getApprovalOrders = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const orders = await Order.aggregate([
+      // Filter orders that have at least one line item with refund or subbed as true
+      {
+        $match: {
+          lineItems: {
+            $elemMatch: {
+              $or: [
+                { refund: true },
+                { subbed: true }
+              ]
+            }
+          }
+        }
+      },
+
+      // Lookup picker
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'pickerId',
+          foreignField: '_id',
+          as: 'picker'
+        }
+      },
+      { $unwind: { path: '$picker', preserveNullAndEmptyArrays: true } },
+
+      // Lookup packer
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'packerId',
+          foreignField: '_id',
+          as: 'packer'
+        }
+      },
+      { $unwind: { path: '$packer', preserveNullAndEmptyArrays: true } },
+
+      // Project only lineItems where refund or subbed is true
+      {
+        $addFields: {
+          lineItems: {
+            $filter: {
+              input: '$lineItems',
+              as: 'item',
+              cond: {
+                $or: [
+                  { $eq: ['$$item.refund', true] },
+                  { $eq: ['$$item.subbed', true] }
+                ]
+              }
+            }
+          }
+        }
+      },
+
+      // Regroup orders
+      {
+        $group: {
+          _id: '$_id',
+          shopifyOrderId: { $first: '$shopifyOrderId' },
+          name: { $first: '$name' },
+          orderNumber: { $first: '$orderNumber' },
+          status: { $first: '$status' },
+          createdAt: { $first: '$createdAt' },
+          customer: { $first: '$customer' },
+          picker: { $first: '$picker' },
+          packer: { $first: '$packer' },
+          delivery: { $first: '$delivery' },
+          adminNote: { $first: '$adminNote' },
+          orderNote: { $first: '$orderNote' },
+          lineItems: { $first: '$lineItems' }, // include filtered items
+          tags: { $first: '$tags' }
+        }
+      },
+
+      // Pagination with total count
+      {
+        $facet: {
+          data: [
+            {
+              $sort: {
+                'delivery.tripId': 1,
+                'delivery.stopNumber': -1
+              }
+            },
+            { $skip: (page - 1) * limit },
+            { $limit: limit }
+          ],
+          totalCount: [{ $count: 'count' }]
+        }
+      },
+
+      {
+        $project: {
+          data: 1,
+          total: { $arrayElemAt: ['$totalCount.count', 0] }
+        }
+      }
+    ]);
+
+    const result = orders[0] || { data: [], total: 0 };
+
+    res.json({
+      orders: result.data.map(order => ({
+        ...order,
+        picker: { name: order.picker?.realName },
+        packer: { name: order.packer?.realName }
+      })),
+      total: result.total
+    });
+  } catch (err) {
+    console.error('Error fetching admin orders:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get /api/admin/approval/:id
+const getApprovalOrder = async (req, res) => {
+  const orderId = req.params.id;
+
+  try {
+    const objectId = new mongoose.Types.ObjectId(orderId);
+
+    const order = await Order.aggregate([
+      { $match: { _id: objectId } },
+      { $unwind: "$lineItems" },
+
+      // ✅ Only keep lineItems where refund or subbed is true
+      {
+        $match: {
+          $or: [
+            { "lineItems.refund": true },
+            { "lineItems.subbed": true }
+          ]
+        }
+      },
+
+      {
+        $lookup: {
+          from: "products",
+          localField: "lineItems.productId",
+          foreignField: "shopifyProductId",
+          as: "productInfo"
+        }
+      },
+      { $unwind: "$productInfo" },
+      {
+        $addFields: {
+          "lineItems.productTitle": "$productInfo.title",
+          "lineItems.image": "$productInfo.image",
+          "lineItems.variantInfo": {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$productInfo.variants",
+                  as: "variant",
+                  cond: {
+                    $eq: ["$$variant.shopifyVariantId", "$lineItems.variantId"]
+                  }
+                }
+              },
+              0
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          name: { $first: "$name" },
           shopifyOrderId: { $first: "$shopifyOrderId" },
           status: { $first: "$status" },
           pickerId: { $first: "$pickerId" },
@@ -528,6 +682,7 @@ module.exports = {
   getDashboardStats,
   getOrders,
   getApprovalOrders,
+  getApprovalOrder,
   getOrder,
   getProducts,
   addOrderNote,
