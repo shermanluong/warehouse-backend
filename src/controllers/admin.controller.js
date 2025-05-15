@@ -246,6 +246,159 @@ const getOrders = async (req, res) => {
   }
 };
 
+// Fetch orders assigned to the picker (e.g., from query param or session)
+const getApprovalOrders = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+    const sortField = req.query.sort || 'createdAt';
+    const sortOrder = req.query.order === 'desc' ? -1 : 1;
+    const selectedDate = req.query.date || '';
+    const pickerName = req.query.picker || '';
+    const packerName = req.query.packer || '';
+    const driver = req.query.driver || '';
+    const tag = req.query.tag || '';
+    
+    const textSearchQuery = {
+      $and: [
+        { 
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            {
+              $expr: {
+                $regexMatch: {
+                  input: { $concat: ['$customer.first_name', ' ', '$customer.last_name'] },
+                  regex: search,
+                  options: 'i'
+                }
+              }
+            }
+          ]
+        },
+        {
+          tags: {
+            $regex: formatDate(selectedDate), // Assuming selectedDate is formatted properly for comparison
+            $options: 'i'
+          }
+        }
+      ]
+    };
+
+    const additionalFilters = [];
+
+    if (pickerName) {
+      additionalFilters.push({ 'picker.realName': { $regex: pickerName, $options: 'i' } });
+    }
+
+    if (packerName) {
+      additionalFilters.push({ 'packer.realName': { $regex: packerName, $options: 'i' } });
+    }
+
+    if (driver) {
+      additionalFilters.push({'delivery.driverMemberId': { $regex: driver, $options: 'i'} });
+    }
+
+    if (tag) {
+      const escapeRegex = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      additionalFilters.push({
+        tags: {
+          $regex: `(?:^|,\\s*)${escapeRegex(tag)}(?:,|$)`,
+          $options: 'i'
+        }
+      });
+    }
+   
+    const orders = await Order.aggregate([
+      // Lookup picker
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'pickerId',
+          foreignField: '_id',
+          as: 'picker'
+        }
+      },
+      { $unwind: { path: '$picker', preserveNullAndEmptyArrays: true } },
+
+      // Lookup packer
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'packerId',
+          foreignField: '_id',
+          as: 'packer'
+        }
+      },
+      { $unwind: { path: '$packer', preserveNullAndEmptyArrays: true } },
+
+      // Regroup orders
+      {
+        $group: {
+          _id: '$_id',
+          shopifyOrderId: { $first: '$shopifyOrderId' },
+          name: { $first: '$name' },
+          orderNumber: { $first: '$orderNumber' },
+          status: { $first: '$status' },
+          createdAt: { $first: '$createdAt' },
+          customer: { $first: '$customer' },
+          picker: { $first: '$picker' },
+          packer: { $first: '$packer' },
+          delivery: { $first: '$delivery' },
+          adminNote: { $first: '$adminNote' },
+          orderNote: { $first: '$orderNote' },
+          lineItemCount: {$sum: {$size : '$lineItems'}},
+          tags: {$first: '$tags'},
+        }
+      },
+
+      // Text search
+      { $match: textSearchQuery },
+
+      // Optional filters
+      ...(additionalFilters.length > 0 ? [{ $match: { $and: additionalFilters } }] : []),
+
+      // Pagination with total count
+      {
+        $facet: {
+          data: [
+            {
+              $sort: {
+                'delivery.tripId': 1, // Sort tripId in ascending order (increase)
+                'delivery.stopNumber': -1 // Sort stopNumber in descending order (decrease)
+              }
+            },
+            { $skip: (page - 1) * limit },
+            { $limit: limit }
+          ],
+          totalCount: [{ $count: 'count' }]
+        }
+      },
+
+      {
+        $project: {
+          data: 1,
+          total: { $arrayElemAt: ['$totalCount.count', 0] }
+        }
+      }
+    ]);
+
+    const result = orders[0] || { data: [], total: 0 };
+
+    res.json({
+      orders: result.data.map(order => ({
+        ...order,
+        picker: { name: order.picker?.realName },
+        packer: { name: order.packer?.realName }
+      })),
+      total: result.total
+    });
+  } catch (err) {
+    console.error('Error fetching admin orders:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 // Get /api/admin/order/:id
 const getOrder = async (req, res) => {
   const orderId = req.params.id;
@@ -437,6 +590,7 @@ module.exports = {
   getLogs,
   getDashboardStats,
   getOrders,
+  getApprovalOrders,
   getOrder,
   getProducts,
   addOrderNote,

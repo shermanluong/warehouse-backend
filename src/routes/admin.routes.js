@@ -4,6 +4,7 @@ const {
   getLogs,
   getDashboardStats,
   getOrders,
+  getApprovalOrders,
   getOrder,
   getProducts,
   getProductStatuses,
@@ -21,6 +22,7 @@ const router = express.Router();
 router.get('/logs', auth(['admin']), getLogs);
 router.get('/stats', auth(['admin']), getDashboardStats); 
 router.get('/getOrders', auth(['admin']), getOrders);
+router.get('/getApprovalOrders', auth(['admin']), getApprovalOrders);
 router.get('/order/:id', auth(['admin']), getOrder);  
 router.get('/getProducts', auth(['admin']), getProducts); 
 router.get('/getProductVendors', auth(['admin']), getProductVendors); 
