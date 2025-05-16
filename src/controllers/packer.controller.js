@@ -19,7 +19,7 @@ const axios = require('axios');
 const getPickedOrders = async (req, res) => {
   try {
     const { userId } = req.user;
-    console.log(userId);
+    
     const match = {
       $or: [
         { status: 'picked' },

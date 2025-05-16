@@ -600,6 +600,31 @@ const getApprovalOrder = async (req, res) => {
   }
 };
 
+const approveLineItem = async (req, res) => {
+  try {
+    const { orderId, shopifyLineItemId } = req.params;
+
+    await Order.updateOne(
+      { _id: orderId, 'lineItems.shopifyLineItemId': shopifyLineItemId.toString() },
+      { $set: { 'lineItems.$.approved': true } }
+    );
+
+    res.json({ success: true, message: 'Item approved' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Approval failed' });
+  }
+};
+
+const approveOrder = async (req, res) => {
+  try {
+    await Order.findByIdAndUpdate(req.params.id, { status: 'approved' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Approval failed' });
+  }
+}
+
 // Controller
 const getProducts = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
@@ -683,6 +708,8 @@ module.exports = {
   getOrders,
   getApprovalOrders,
   getApprovalOrder,
+  approveOrder,
+  approveLineItem,
   getOrder,
   getProducts,
   addOrderNote,

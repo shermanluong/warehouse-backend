@@ -6,6 +6,8 @@ const {
   getOrders,
   getApprovalOrders,
   getApprovalOrder,
+  approveOrder,
+  approveLineItem,
   getOrder,
   getProducts,
   getProductStatuses,
@@ -25,6 +27,8 @@ router.get('/stats', auth(['admin']), getDashboardStats);
 router.get('/getOrders', auth(['admin']), getOrders);
 router.get('/getApprovalOrders', auth(['admin']), getApprovalOrders);
 router.get('/getApprovalOrder/:id', auth(['admin']), getApprovalOrder);
+router.post('/order/:id/approve', auth(['admin']), approveOrder);
+router.patch('/order/:id/item/:shopifyLineItemId/approve', auth(['admin']), approveLineItem);
 router.get('/order/:id', auth(['admin']), getOrder);  
 router.get('/getProducts', auth(['admin']), getProducts); 
 router.get('/getProductVendors', auth(['admin']), getProductVendors); 
