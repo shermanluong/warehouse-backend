@@ -100,7 +100,8 @@ const orderSchema = new Schema({
       zip: String
     }
   },
-  boxCount: { type: Number, default: 0}
+  boxCount: { type: Number, default: 0},
+  approved: {type: Boolean, default: false},
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

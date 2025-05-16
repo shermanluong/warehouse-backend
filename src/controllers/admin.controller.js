@@ -366,6 +366,7 @@ const getApprovalOrders = async (req, res) => {
       // Filter orders that have at least one line item with refund or subbed as true
       {
         $match: {
+          approved: { $ne: true }, // Exclude already approved
           lineItems: {
             $elemMatch: {
               $or: [
@@ -602,10 +603,9 @@ const getApprovalOrder = async (req, res) => {
 
 const approveLineItem = async (req, res) => {
   try {
-    const { orderId, shopifyLineItemId } = req.params;
-
+    const { id, shopifyLineItemId } = req.params;
     await Order.updateOne(
-      { _id: orderId, 'lineItems.shopifyLineItemId': shopifyLineItemId.toString() },
+      { _id: id, 'lineItems.shopifyLineItemId': shopifyLineItemId.toString() },
       { $set: { 'lineItems.$.approved': true } }
     );
 
@@ -618,7 +618,7 @@ const approveLineItem = async (req, res) => {
 
 const approveOrder = async (req, res) => {
   try {
-    await Order.findByIdAndUpdate(req.params.id, { status: 'approved' });
+    await Order.findByIdAndUpdate(req.params.id, { approved: true });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ message: 'Approval failed' });
