@@ -646,7 +646,7 @@ const getApprovalOrder = async (req, res) => {
           subProduct: 0
         }
       },
-      
+
       {
         $group: {
           _id: "$_id",
@@ -720,12 +720,38 @@ const getApprovalOrder = async (req, res) => {
 };
 
 const approveLineItem = async (req, res) => {
+  const { id, shopifyLineItemId } = req.params;
   try {
-    const { id, shopifyLineItemId } = req.params;
-    await Order.updateOne(
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Find the line item and validate it exists
+    const lineItem = order.lineItems.find(item => 
+      item.shopifyLineItemId.toString() === shopifyLineItemId.toString()
+    );
+
+    if (!lineItem) {
+      return res.status(404).json({ error: 'Line item not found' });
+    }
+
+    // Process refund status
+    if (lineItem.refund === true) {
+      console.log(`Approved refund for line item ${shopifyLineItemId}`);
+      // Add any refund-specific logic here
+    }
+
+    // Process substitution status
+    if (lineItem.subbed === true) {
+      console.log(`Approved substitution for line item ${shopifyLineItemId}`);
+      // Add any substitution-specific logic here
+    }
+
+    /*await Order.updateOne(
       { _id: id, 'lineItems.shopifyLineItemId': shopifyLineItemId.toString() },
       { $set: { 'lineItems.$.approved': true } }
-    );
+    );*/
 
     res.json({ success: true, message: 'Item approved' });
   } catch (err) {
