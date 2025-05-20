@@ -529,6 +529,124 @@ const getApprovalOrder = async (req, res) => {
           }
         }
       },
+
+      {
+        $addFields: {
+          "lineItems.productTitle": "$productInfo.title",
+          "lineItems.image": "$productInfo.image",
+          "lineItems.variantInfo": {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$productInfo.variants",
+                  as: "variant",
+                  cond: {
+                    $eq: ["$$variant.shopifyVariantId", "$lineItems.variantId"]
+                  }
+                }
+              },
+              0
+            ]
+          }
+        }
+      },
+      
+      // Precompute the field to use for lookup (outOfStock or damaged)
+      {
+        $addFields: {
+          substitutionProductId: {
+            $ifNull: [
+              "$lineItems.pickedStatus.outOfStock.subbed.productId", 
+              "$lineItems.pickedStatus.damaged.subbed.productId"
+            ]
+          }
+        }
+      },
+
+      // Lookup substitute product (using the precomputed substitutionProductId)
+      {
+        $lookup: {
+          from: "products",
+          localField: "substitutionProductId", // Use the precomputed field
+          foreignField: "shopifyProductId",
+          as: "subProduct"
+        }
+      },
+
+      {
+        $addFields: {
+          "lineItems.substitution": {
+            $let: {
+              vars: {
+                matchedVariant: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: {
+                          $ifNull: [
+                            { $arrayElemAt: ["$subProduct.variants", 0] },
+                            []
+                          ]
+                        },
+                        as: "variant",
+                        cond: {
+                          $eq: [
+                            "$$variant.shopifyVariantId",
+                            {
+                              $ifNull: [
+                                "$lineItems.pickedStatus.outOfStock.subbed.variantId",
+                                "$lineItems.pickedStatus.damaged.subbed.variantId"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                    },
+                    0
+                  ]
+                },
+                productTitle: { $arrayElemAt: ["$subProduct.title", 0] },
+                productImage: { $arrayElemAt: ["$subProduct.image", 0] }
+              },
+              in: {
+                $mergeObjects: [
+                  "$$matchedVariant",
+                  {
+                    title: {
+                      $cond: [
+                        { $eq: ["$$matchedVariant.title", "Default Title"] },
+                        "$$productTitle",
+                        "$$matchedVariant.title"
+                      ]
+                    },
+                    image: {
+                      $cond: [
+                        {
+                          $or: [
+                            { $eq: ["$$matchedVariant.image", null] },
+                            { $eq: ["$$matchedVariant.image", ""] }
+                          ]
+                        },
+                        "$$productImage",
+                        "$$matchedVariant.image"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+
+      // Clean up subProduct
+      {
+        $project: {
+          productInfo: 0,
+          subProduct: 0
+        }
+      },
+      
       {
         $group: {
           _id: "$_id",
