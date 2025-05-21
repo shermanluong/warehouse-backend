@@ -4,6 +4,7 @@ const Order = require('../models/order.model');
 const Product = require('../models/product.model');
 const Driver = require('../models/driver.model');
 const Tote = require('../models/tote.model');
+const { adjustShopifyInventory, refundItem} = require('../services/shopify.service');
 
 const mongoose = require('mongoose');
 const { formatDate } = require('../utils/formateDate');
@@ -736,16 +737,24 @@ const approveLineItem = async (req, res) => {
       return res.status(404).json({ error: 'Line item not found' });
     }
 
-    // Process refund status
     if (lineItem.refund === true) {
-      console.log(`Approved refund for line item ${shopifyLineItemId}`);
-      // Add any refund-specific logic here
-    }
-
-    // Process substitution status
-    if (lineItem.subbed === true) {
+      const refundQuantity = lineItem.pickedStatus.damaged.quantity + lineItem.packedStatus.outOfStock.quantity;
+      console.log(`Refund quantity: ${refundQuantity}`);
+      //await refundItem(order.shopifyOrderId, shopifyLineItemId, refundQuantity);
+    } else if (lineItem.subbed === true) {
       console.log(`Approved substitution for line item ${shopifyLineItemId}`);
-      // Add any substitution-specific logic here
+      
+      if ( lineItem.pickedStatus.damaged?.quantity > 0 ) {
+        const damagedQuantity = lineItem.pickedStatus.damaged.quantity;
+        console.log(`Decreasing original variant (damaged) inventory by: ${damagedQuantity}`);
+        //await adjustShopifyInventory(lineItem.pickedStatus.damaged.variantId, -damagedQuantity);
+      }
+
+      if ( lineItem.pickedStatus.outOfStock?.quantity > 0 ) {
+        const outOfStockQuantity = lineItem.pickedStatus.outOfStock.quantity;
+        console.log(`Decreasing original variant (out of stock) inventory by: ${outOfStockQuantity}`);
+        //await adjustShopifyInventory(lineItem.pickedStatus.outOfStock.variantId, -outOfStockQuantity);
+      }
     }
 
     /*await Order.updateOne(
