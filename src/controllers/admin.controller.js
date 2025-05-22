@@ -370,6 +370,34 @@ const getOrder = async (req, res) => {
   }
 };
 
+// Delete /api/admin/order
+const deleteAllOrders = async (req, res) => {
+  try {
+    await Order.deleteMany({});
+    res.json({message: 'All orders deleted successfully.'});
+  } catch (error) {
+    console.error('Error deleting all orders', error);
+    res.status(500).json({error: 'Internal server error'});
+  }
+};
+
+const deleteOrdersBydate = async (req, res) => {
+  try {
+    const selectedDate = req.query.date;
+    if (!selectedDate) {
+      return res.status(400).json({ error: 'Date query is required' });
+    }
+
+    const regex = new RegExp(formatDate(selectedDate), 'i');
+    const result = await Order.deleteMany({ tags: { $regex: regex } });
+
+    res.json({ message: `${result.deletedCount} orders deleted for date ${selectedDate}.` });
+  } catch (error) {
+    console.error('Error deleting orders by date:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 // Fetch orders assigned to the picker (e.g., from query param or session)
 const getApprovalOrders = async (req, res) => {
   try {
@@ -872,6 +900,8 @@ module.exports = {
   getLogs,
   getDashboardStats,
   getOrders,
+  deleteAllOrders,
+  deleteOrdersBydate,
   getApprovalOrders,
   getApprovalOrder,
   approveOrder,

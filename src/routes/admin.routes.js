@@ -4,6 +4,8 @@ const {
   getLogs,
   getDashboardStats,
   getOrders,
+  deleteAllOrders,
+  deleteOrdersBydate,
   getApprovalOrders,
   getApprovalOrder,
   approveOrder,
@@ -25,6 +27,8 @@ const router = express.Router();
 router.get('/logs', auth(['admin']), getLogs);
 router.get('/stats', auth(['admin']), getDashboardStats); 
 router.get('/getOrders', auth(['admin']), getOrders);
+router.delete('/orders', auth(['admin']), deleteAllOrders);
+router.delete('/orders/by-date', auth(['admin']), deleteOrdersBydate);
 router.get('/getApprovalOrders', auth(['admin']), getApprovalOrders);
 router.get('/getApprovalOrder/:id', auth(['admin']), getApprovalOrder);
 router.post('/order/:id/approve', auth(['admin']), approveOrder);
