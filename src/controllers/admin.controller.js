@@ -105,12 +105,24 @@ const getOrders = async (req, res) => {
     const selectedDate = req.query.date || '';
     const pickerName = req.query.picker || '';
     const packerName = req.query.packer || '';
-    const driver = req.query.driver || '';
-    const tag = req.query.tag || '';
-    
+
+    const driversRaw = req.query.driver || req.query['driver[]'];
+    const drivers = Array.isArray(driversRaw)
+      ? driversRaw
+      : driversRaw
+        ? [driversRaw]
+        : [];
+
+    const tagsRaw = req.query.tag || req.query['tag[]'];
+    const tags = Array.isArray(tagsRaw)
+      ? tagsRaw
+      : tagsRaw
+        ? [tagsRaw]
+        : [];
+
     const textSearchQuery = {
       $and: [
-        { 
+        {
           $or: [
             { name: { $regex: search, $options: 'i' } },
             {
@@ -126,7 +138,7 @@ const getOrders = async (req, res) => {
         },
         {
           tags: {
-            $regex: formatDate(selectedDate), // Assuming selectedDate is formatted properly for comparison
+            $regex: formatDate(selectedDate),
             $options: 'i'
           }
         }
@@ -143,20 +155,21 @@ const getOrders = async (req, res) => {
       additionalFilters.push({ 'packer.realName': { $regex: packerName, $options: 'i' } });
     }
 
-    if (driver) {
-      additionalFilters.push({'delivery.driverMemberId': { $regex: driver, $options: 'i'} });
-    }
-
-    if (tag) {
-      const escapeRegex = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (drivers.length > 0) {
       additionalFilters.push({
-        tags: {
-          $regex: `(?:^|,\\s*)${escapeRegex(tag)}(?:,|$)`,
-          $options: 'i'
-        }
+        'delivery.driverMemberId': { $in: drivers.map(d => new RegExp(d, 'i')) }
       });
     }
-   
+
+    if (tags.length > 0) {
+      additionalFilters.push({
+        $or: tags.map(t => ({
+          tags: { $regex: new RegExp(`(?:^|,\\s*)${t}(?:,|$)`, 'i') }
+        }))
+      });
+    }
+
+    // rest of your pipeline...
     const orders = await Order.aggregate([
       // Lookup picker
       {
