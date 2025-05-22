@@ -18,24 +18,41 @@ const assignLeastBusyPicker = async () => {
 };
 
 const fetchAndStoreOrders = async (req, res) => {
-  const { tripDate, driver, tag } = req.query;
+  const tripDate = req.query.tripDate;
+  const driversRaw = req.query.driver || req.query['driver[]'];
+    const drivers = Array.isArray(driversRaw)
+      ? driversRaw
+      : driversRaw
+        ? [driversRaw]
+        : [];
+
+    const tagsRaw = req.query.tag || req.query['tag[]'];
+    const tags = Array.isArray(tagsRaw)
+      ? tagsRaw
+      : tagsRaw
+        ? [tagsRaw]
+        : [];
+
   const orders = await getOrders([formatDate(tripDate)]); // Pull unfulfilled orders from Shopify
   const tripDetails = await getLocate2uStopsService(tripDate);
-  
+
   let count = 0;
 
   for (const tripDetail of tripDetails) {
-    if (tripDetail.teamMemberId == driver || driver == '') {
+    if (drivers.length === 0 || drivers.includes(tripDetail.teamMemberId)) {
       for (const stop of tripDetail.stops) {
         const order = orders.find(o => {
           const orderIdMatch = o.order_number == stop?.customFields?.orderid;
-          const tagMatch = !tag || new RegExp(`(?:^|,\\s*)${tag}(?:,|$)`, 'i').test(o.tags || '');
+          const tagMatch = tags.length === 0 || tags.some(tag =>
+            new RegExp(`(?:^|,\\s*)${tag}(?:,|$)`, 'i').test(o.tags || '')
+          );
           return orderIdMatch && tagMatch;
         });
-  
+
         if (order) {
           const customer = order.customer;
           const picker = await assignLeastBusyPicker();
+
           const delivery = {
             driverName: tripDetail?.driverName,
             driverMemberId: tripDetail?.teamMemberId,
@@ -45,29 +62,30 @@ const fetchAndStoreOrders = async (req, res) => {
             startTime: tripDetail?.startTime,
             endTime: tripDetail?.endTime,
           };
+
           const lineItems = order.line_items.map((item) => ({
-            shopifyLineItemId: item.id,  
+            shopifyLineItemId: item.id,
             productId: item.product_id,
             variantId: item.variant_id,
             quantity: item.quantity,
             picked: false,
             packed: false,
             pickedStatus: {
-              verified: {quantity : 0}, 
-              damagedQuantity: {quantity : 0}, 
-              outOfStockQuantity: {quantity: 0}
+              verified: { quantity: 0 },
+              damagedQuantity: { quantity: 0 },
+              outOfStockQuantity: { quantity: 0 }
             },
             packedStatus: {
-              verified: {quantity : 0}, 
-              damagedQuantity: {quantity : 0}, 
-              outOfStockQuantity: {quantity: 0}
+              verified: { quantity: 0 },
+              damagedQuantity: { quantity: 0 },
+              outOfStockQuantity: { quantity: 0 }
             },
             substitution: null,
             flags: [],
-            adminNote: '', // You can populate this manually or from your product DB
+            adminNote: '',
             customerNote: item.properties?.find(p => p.name === 'Note')?.value || '',
           }));
-          
+
           await Order.findOneAndUpdate(
             { shopifyOrderId: order.id },
             {
@@ -77,9 +95,9 @@ const fetchAndStoreOrders = async (req, res) => {
                 orderNumber: order.order_number,
                 status: 'new',
                 tags: order.tags,
-                orderNote: order.note, // general order-level customer note
+                orderNote: order.note,
                 pickerId: picker._id,
-                delivery: delivery,
+                delivery,
                 lineItems,
                 customer: customer ? {
                   id: customer.id,
@@ -100,21 +118,22 @@ const fetchAndStoreOrders = async (req, res) => {
             },
             { upsert: true }
           );
-      
+
           const newLineItemCount = order.line_items.reduce((acc, item) => acc + item.quantity, 0);
-      
+
           await User.findByIdAndUpdate(picker._id, {
             $inc: { 'stats.currentLineItemsAssigned': newLineItemCount }
           });
-  
+
           count++;
         }
       }
     }
-  };
+  }
 
-  res.json({ message: 'Synced', count: count});
+  res.json({ message: 'Synced', count });
 };
+
 
 const GET_ALL_PRODUCTS_QUERY = `
   query getAllProducts($cursor: String) {
