@@ -404,6 +404,14 @@ const confirmSubItem = async (req, res) => {
     const item = order.lineItems.find(i => i.shopifyLineItemId === shopifyLineItemId);
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
+    item.packedStatus = {...item.packedStatus, damaged: {quantity : item.pickedStatus.damaged.quantity}, outOfStock: {quantity : item.pickedStatus.outOfStock.quantity}};
+
+    const packedStatus = item.packedStatus;
+    const totalPackedQuantity = packedStatus.verified.quantity + packedStatus.damaged.quantity + packedStatus.outOfStock.quantity;
+    if (totalPackedQuantity >= item.quantity) {
+      item.packed = true;
+    }
+
     item.subbed = true;
     await order.save();
     //await adjustShopifyInventory(item.variantId, -1); // 🔻 Decrease original variant
