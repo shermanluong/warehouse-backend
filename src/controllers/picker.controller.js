@@ -315,9 +315,9 @@ const pickItem =  async (req, res) => {
 }
 
 //PATCH /api/picker/order/:id/pick-plus
-const pickPlusItem =  async (req, res) => {
+const pickPlusItem = async (req, res) => {
   const { id } = req.params;
-  const { shopifyLineItemId } = req.body;
+  const { shopifyLineItemId, quantity = 1 } = req.body;
 
   const order = await Order.findById(id);
   if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -326,16 +326,18 @@ const pickPlusItem =  async (req, res) => {
   if (!item) return res.status(404).json({ message: 'Item not found' });
 
   if (item.picked === true) {
-    return res.status(404).json({ message: 'Item has already picked' });
+    return res.status(400).json({ message: 'Item has already been picked' });
   }
 
   const pickedStatus = item.pickedStatus;
-  let totalPickedQuantity = pickedStatus.verified.quantity + pickedStatus.damaged.quantity + pickedStatus.outOfStock.quantity;
+  const alreadyPicked = pickedStatus.verified.quantity + pickedStatus.damaged.quantity + pickedStatus.outOfStock.quantity;
+  const availableToPick = item.quantity - alreadyPicked;
 
-  if (totalPickedQuantity < item.quantity) {
-    totalPickedQuantity += 1;
-    item.pickedStatus.verified.quantity += 1;
-  } 
+  // Ensure we do not over-pick
+  const pickQuantity = Math.min(quantity, availableToPick);
+  pickedStatus.verified.quantity += pickQuantity;
+
+  const totalPickedQuantity = pickedStatus.verified.quantity + pickedStatus.damaged.quantity + pickedStatus.outOfStock.quantity;
 
   if (totalPickedQuantity >= item.quantity) {
     item.picked = true;
@@ -343,7 +345,7 @@ const pickPlusItem =  async (req, res) => {
 
   await order.save();
   res.json({ success: true, item });
-}
+};
 
 //PATCH /api/picker/order/:id/pick-minus
 const pickMinusItem =  async (req, res) => {
