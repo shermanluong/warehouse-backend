@@ -1,10 +1,27 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/user.model');
+const mongoose = require('mongoose');
 
 // Admin gets all users
 const getUsers = async (req, res) => {
     const users = await User.find({}, '-passwordHash');
     res.json(users);
+};
+
+const getUser = async (req, res) => {
+  try {
+    const userObjectId = new mongoose.Types.ObjectId(req.user.userId); // convert string to ObjectId
+    const user = await User.findById(userObjectId); // Only fetch needed fields
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error('Error fetching user profile:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };
   
 const upsertUser = async (req, res) => {
@@ -69,6 +86,7 @@ const upsertUser = async (req, res) => {
 
 module.exports = {
     getUsers,
+    getUser,
     upsertUser,
     deleteUser,
 };
