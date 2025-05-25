@@ -7,22 +7,6 @@ const getUsers = async (req, res) => {
     const users = await User.find({}, '-passwordHash');
     res.json(users);
 };
-
-const getUser = async (req, res) => {
-  try {
-    const userObjectId = new mongoose.Types.ObjectId(req.user.userId); // convert string to ObjectId
-    const user = await User.findById(userObjectId); // Only fetch needed fields
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json(user);
-  } catch (err) {
-    console.error('Error fetching user profile:', err);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
   
 const upsertUser = async (req, res) => {
     const { userName, realName, role } = req.body;
@@ -73,7 +57,7 @@ const upsertUser = async (req, res) => {
         error: 'An error occurred while processing the user' 
       });
     }
-  };
+};
   
   // Admin deletes user
   const deleteUser = async (req, res) => {
@@ -84,9 +68,81 @@ const upsertUser = async (req, res) => {
     res.json({ message: 'User deleted' });
 };
 
+const getProfile = async (req, res) => {
+  try {
+    const userObjectId = new mongoose.Types.ObjectId(req.user.userId); // convert string to ObjectId
+    const user = await User.findById(userObjectId); // Only fetch needed fields
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error('Error fetching user profile:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const saveProfile = async (req, res) => {
+  try {
+    const userObjectId = new mongoose.Types.ObjectId(req.user.userId); // Auth middleware should set req.user.userId
+
+    // Only allow certain fields to be updated
+    const { realName, userName, role, active } = req.body;
+    const update = { realName, userName, role, active };
+    console.log(update);
+    // Find and update user
+    const updatedUser = await User.findByIdAndUpdate(
+      userObjectId,
+      { $set: update },
+      { new: true, runValidators: true}
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(updatedUser);
+  } catch (err) {
+    console.error('Error updating profile:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const userObjectId = new mongoose.Types.ObjectId(req.user.userId);
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userObjectId,
+      { $set: { passwordHash: hash } },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Error changing password:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 module.exports = {
-    getUsers,
-    getUser,
-    upsertUser,
-    deleteUser,
+  getUsers,
+  upsertUser,
+  deleteUser,
+  getProfile,
+  saveProfile,
+  changePassword
 };
